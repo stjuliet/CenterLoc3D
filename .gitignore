@@ -1,0 +1,6 @@
+.vscode
+__pycache__
+/img/
+/logs/
+/model_data/
+/train/

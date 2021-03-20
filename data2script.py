@@ -1,0 +1,72 @@
+#---------------------------------------------#
+#   运行前一定要修改classes
+#   如果生成的2007_train.txt里面没有目标信息
+#   那么就是因为classes没有设定正确
+#---------------------------------------------#
+import xml.etree.ElementTree as ET
+from os import getcwd
+import re
+
+# sets=[('2007', 'train'), ('2007', 'val'), ('2007', 'test')]
+# classes = ["aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
+
+sets=[('DATA2021', 'train'), ('DATA2021', 'val'), ('DATA2021', 'test')]
+classes = ["Car", "Truck", "Bus"]
+
+def convert_annotation(year, image_id, list_file):
+    in_file = open('DATAdevkit/%s/Annotations/%s.xml'%(year, image_id), encoding='utf-8')
+    tree=ET.parse(in_file)
+    root = tree.getroot()
+    
+    # calib xml path
+    calib_xml_path = str(tree.find('calibfile').text)
+
+    # box
+    for idx, obj in enumerate(root.iter('object')):
+        # 1、二维框[left, top, width, height]
+        bbox2d_data = obj.find('bbox2d').text.split()
+        # 2、车辆类型(0，1，2)
+        veh_type_data = obj.find('type').text
+        if veh_type_data not in classes:
+            continue
+        veh_cls_id = classes.index(veh_type_data)
+        # 3、车辆三维中心点坐标(int)
+        veh_centre_data = obj.find('veh_loc_2d').text.split()
+        # 4、车辆三维框顶点坐标(int)
+        veh_vertex_data = [] # for each box (8 vertex)
+        box_2dvertex = re.findall(r'[(](.*?)[)]', obj.find('vertex2d').text)
+        for x in box_2dvertex:
+            veh_vertex_data += [int(item) for item in x.split(", ")]  # 合并为[x1,y1,x2,y2,...,x8,y8]的形式
+        # 5、车辆三维尺寸(float, m)
+        veh_size_data = obj.find('veh_size').text.split()
+        # 6、视角(left, right)
+        veh_view_data = obj.find('perspective').text
+        if veh_view_data == 'right':
+            veh_view_data = 1
+        else:
+            veh_view_data = 0
+        # 7、车辆基准点坐标(int)
+        veh_base_point_data = obj.find('base_point').text.split()
+
+        # 每个目标数据保存
+        # line
+        # file_path (在外部写入)
+        #  calib_xml_path left,top,width,height,cls_id,cx1,cy1,u0,v0,...,u7,v7,v_l,v_w,v_h,pers,bpx1,bpx2  (29 items)
+        if idx == 0:
+            list_file.write(" " + calib_xml_path)
+        single_line = " " + ",".join([box for box in bbox2d_data]) + "," + str(veh_cls_id) + "," + \
+                        ",".join([centre for centre in veh_centre_data]) + "," + ",".join([str(vertex) for vertex in veh_vertex_data]) + "," + \
+                            ",".join([size for size in veh_size_data]) + "," + str(veh_view_data) + "," + ",".join([base_point for base_point in veh_base_point_data])
+        list_file.write(single_line)
+
+wd = getcwd()
+
+for year, image_set in sets:
+    image_ids = open('DATAdevkit/%s/ImageSets/Main/%s.txt'%(year, image_set)).read().strip().split()
+    list_file = open('%s_%s.txt'%(year, image_set), 'w')  # 写入txt
+    for image_id in image_ids:
+        # file_path calib_xml_path left,top,width,height,cls_id,cx1,cy1,u0,v0,...,u7,v7,v_l,v_w,v_h,pers,bpx1,bpx2
+        list_file.write('%s/DATAdevkit/%s/JPEGImages/%s.jpg'%(wd, year, image_id)) # 写入文件绝对路径至txt
+        convert_annotation(year, image_id, list_file)
+        list_file.write('\n')
+    list_file.close()
