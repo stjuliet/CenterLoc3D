@@ -101,7 +101,7 @@ def fit_one_epoch(net,epoch,epoch_size,epoch_size_val,gen,genval,Epoch,cuda):
                 size_loss = reg_l1_loss(pred_size, batch_size_regs, batch_center_masks, index = 3)
                 reproj_loss = reproject_l1_loss(pred_vertex, batch_hms, batch_calib_matrixs, pred_size, batch_center_masks, batch_raw_box_base_points, 16, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
                 
-                loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss
+                loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss  # 调整权重
 
                 val_loss += loss.item()
 
