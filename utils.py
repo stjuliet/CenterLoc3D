@@ -372,7 +372,7 @@ def decode_bbox(pred_hms, pred_center, pred_vertex, pred_size, image_size, thres
         pred_center_mask = pred_center[mask]
         pred_vertex_mask = pred_vertex[mask]
         pred_size_mask = pred_size[mask]
-        if len(pred_center_mask)==0:
+        if len(pred_center_mask) == 0:
             detects.append([])
             continue     
 

@@ -1,15 +1,16 @@
-import colorsys
+# predict and decode results
 import os
-import pickle
-
 import cv2 as cv
 import numpy as np
-import torch
+import colorsys
 from PIL import Image, ImageDraw, ImageFont
+
+import torch
 from torch import nn
 from torch.autograd import Variable
 
 from fpn import KeyPointDetection
+from hourglass import HourglassNet, HgResBlock, Hourglass
 from utils import decode_bbox, letterbox_image
 
 
@@ -17,14 +18,10 @@ def preprocess_image(image):
     mean = [0.40789655, 0.44719303, 0.47026116]
     std = [0.2886383, 0.27408165, 0.27809834]
     return ((np.float32(image) / 255.) - mean) / std
-    
-#--------------------------------------------#
-#   使用自己训练好的模型预测需要修改3个参数
-#   model_path、classes_path和backbone
-#   都需要修改！
-#   如果出现shape不匹配，一定要注意
-#   训练时的model_path和classes_path参数的修改
-#--------------------------------------------#
+
+
+# 使用自己训练好的模型预测
+# model_path、classes_path和backbone
 class Bbox3dPred(object):
     _defaults = {
         "model_path"        : 'logs/Epoch1-Total_Loss12055.5039-Val_Loss0.0000.pth',
@@ -39,7 +36,8 @@ class Bbox3dPred(object):
         # 也可以根据检测效果自行选择
         "nms"               : False,
         "nms_threhold"      : 0.3,
-        "cuda"              : True
+        "cuda"              : True,
+        "letterbox_image"   : True
     }
 
     @classmethod
@@ -48,18 +46,17 @@ class Bbox3dPred(object):
             return cls._defaults[n]
         else:
             return "Unrecognized attribute name '" + n + "'"
+    
+    # backbone-resnets对应序号
+    self.backbone_resnet_index = {"resnet18": 0, "resnet34": 1, "resnet50": 2, "resnet101": 3, "resnet152": 4}
 
-    #---------------------------------------------------#
-    #   初始化Bbox3d
-    #---------------------------------------------------#
+    # 初始化Bbox3d
     def __init__(self, **kwargs):
         self.__dict__.update(self._defaults)
         self.class_names = self._get_class()
         self.generate()
 
-    #---------------------------------------------------#
-    #   获得所有的分类
-    #---------------------------------------------------#
+    # 获得所有的分类
     def _get_class(self):
         classes_path = os.path.expanduser(self.classes_path)
         with open(classes_path) as f:
@@ -67,32 +64,26 @@ class Bbox3dPred(object):
         class_names = [c.strip() for c in class_names]
         return class_names
 
-    #---------------------------------------------------#
-    #   载入模型
-    #---------------------------------------------------#
+    # 载入模型
     def generate(self):
-        #----------------------------------------#
-        #   计算种类数量
-        #----------------------------------------#
+        # 计算类别数
         self.num_classes = len(self.class_names)
+        # 创建模型
+        if self.backbone[:-2] == "resnet":
+            self.model = KeyPointDetection(model_index=self.backbone_resnet_index[self.backbone[-2:]], num_classes=self.num_classes, pretrained_weights=False)
+        if self.backbone == "hourglass":
+            self.model = HourglassNet(2, 1, 256, 3, HgResBlock, inplanes=3)
 
-        #----------------------------------------#
-        #   创建模型
-        #----------------------------------------#
-        self.model = KeyPointDetection(model_index=2, num_classes=self.num_classes, pretrained_weights=False)
-
-        #----------------------------------------#
-        #   载入权值
-        #----------------------------------------#
+        # 载入权值
         print('Loading weights into state dict...')
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         state_dict = torch.load(self.model_path, map_location=device)
-        self.model.load_state_dict(state_dict,strict=True)
+        self.model.load_state_dict(state_dict, strict=True)
+        # 验证模式
         self.model = self.model.eval()
 
         if self.cuda:
             os.environ["CUDA_VISIBLE_DEVICES"] = '0'
-            # self.centernet = nn.DataParallel(self.centernet)
             self.model.cuda()
                                     
         print('{} model, classes loaded.'.format(self.model_path))
@@ -105,35 +96,39 @@ class Bbox3dPred(object):
             map(lambda x: (int(x[0] * 255), int(x[1] * 255), int(x[2] * 255)),
                 self.colors))
 
-    #---------------------------------------------------#
-    #   检测图片
-    #---------------------------------------------------#
+    # 检测图片
     def detect_image(self, image):
         image_shape = np.array(np.shape(image)[0:2])
-        #---------------------------------------------------------#
-        #   给图像增加灰条，实现不失真的resize
-        #---------------------------------------------------------#
-        crop_img = letterbox_image(image, [self.image_size[0],self.image_size[1]])
-        #----------------------------------------------------------------------------------#
-        #   将RGB转化成BGR，这是因为原始的centernet_hourglass权值是使用BGR通道的图片训练的
-        #----------------------------------------------------------------------------------#
-        photo = np.array(crop_img,dtype = np.float32)[:,:,::-1]
 
-        letter_img = np.array(crop_img,dtype = np.float32)[:,:,::-1]
-        #-----------------------------------------------------------#
-        #   图片预处理，归一化。获得的photo的shape为[1, 3, 512, 512]
-        #-----------------------------------------------------------#
-        photo = np.reshape(np.transpose(preprocess_image(photo), (2, 0, 1)), [1, self.image_size[2], self.image_size[0], self.image_size[1]])
+        # 给图像增加灰条，实现不失真的resize
+        # 也可以直接resize进行识别
+        if self.letterbox_image:
+            crop_img = np.array(letterbox_image(image, (self.model_image_size[1], self.model_image_size[0])))
+            crop_img = np.array(crop_img, dtype = np.float32)[:,:,::-1]
+        else:
+            crop_img = image.convert('RGB')
+            crop_img = crop_img.resize((self.model_image_size[1], self.model_image_size[0]), Image.BICUBIC)
+
+        photo = np.array(crop_img, dtype = np.float32)
+        letter_img = np.array(crop_img, dtype = np.float32)
+        
+        # 图片预处理，归一化。获得的photo的shape为[1, 3, 512, 512]
+        photo = np.reshape(np.transpose(preprocess_image(crop_img), (2, 0, 1)), [1, self.image_size[2], self.image_size[0], self.image_size[1]])
         
         with torch.no_grad():
             images = Variable(torch.from_numpy(np.asarray(photo)).type(torch.FloatTensor))
             if self.cuda:
                 images = images.cuda()
 
+            # [bt, num_classes, 128, 128]
+            # [bt, 2, 128, 128]
+            # [bt, 16, 128, 128]
+            # [bt, 3, 128, 128]
             output_hm, output_center, output_vertex, output_size = self.model(images)
 
             # 保存热力图
-            hotmaps = output_hm[0].cpu().numpy().transpose(1, 2, 0)[...,0]
+            # 提取属于第0类的热力图
+            hotmaps = output_hm[0].cpu().numpy().transpose(1, 2, 0)[..., 0]
             print(hotmaps.shape)
 
             import matplotlib.pyplot as plt
@@ -149,9 +144,7 @@ class Bbox3dPred(object):
             superimposed_img = heatmap * 0.4 + letter_img
             # cv.imwrite('img/hotmap.jpg', superimposed_img)
 
-            #-----------------------------------------------------------#
-            #   利用预测结果进行解码
-            #-----------------------------------------------------------#
+            # 利用预测结果进行解码
             outputs = decode_bbox(output_hm, output_center, output_vertex, output_size, self.image_size, self.confidence, self.cuda)
 
             #-------------------------------------------------------#
@@ -169,16 +162,12 @@ class Bbox3dPred(object):
         #         pass
             
             output = outputs[0]
-            if len(output)<=0:
+            if len(output) <= 0:
                 return image
             
             norm_center, norm_vertex, box_size, det_conf, det_cls = output[:,:2], output[:,2:18], output[:,18:21], output[:,21], output[:,22]
-
-        #     batch_boxes, det_conf, det_label = output[:,:4], output[:,4], output[:,5]
-        #     det_xmin, det_ymin, det_xmax, det_ymax = batch_boxes[:, 0], batch_boxes[:, 1], batch_boxes[:, 2], batch_boxes[:, 3]
-        #     #-----------------------------------------------------------#
-        #     #   筛选出其中得分高于confidence的框 
-        #     #-----------------------------------------------------------#
+            
+            # 筛选出其中得分高于confidence的框 
             top_indices = [i for i, conf in enumerate(det_conf) if conf >= self.confidence]
             top_conf = det_conf[top_indices]
             top_label_indices = det_cls[top_indices].tolist()

@@ -1,13 +1,15 @@
+# load datasets
 import math
+import cv2 as cv
+import numpy as np
 from random import shuffle
 
-import cv2
-import numpy as np
+from PIL import Image
+from matplotlib.colors import hsv_to_rgb, rgb_to_hsv
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from matplotlib.colors import hsv_to_rgb, rgb_to_hsv
-from PIL import Image
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
@@ -94,7 +96,7 @@ class Bbox3dDatasets(Dataset):
         # raw_box_base_point[:len(box_info)] = box_base_point
 
         # resize image (加灰条)
-        image = self.letterbox_image(image,image_h, image_w, input_shape)
+        image = self.letterbox_image(image, image_h, image_w, input_shape)
 
         if augment: # 如果进行数据增强(色域变换/随机水平翻转)
             # 随机水平翻转
@@ -184,9 +186,7 @@ class Bbox3dDatasets(Dataset):
             shuffle(self.train_lines)
         lines = self.train_lines
 
-        #-------------------------------------------------#
-        #   进行数据增强
-        #-------------------------------------------------#
+        # 进行数据增强
         image_data, calib_matrix, correct_box2d, box_cls, correct_box_center, correct_box_vertex, box_size, box_perspective, box_base_point, raw_img_w, raw_img_h = self.get_random_data(lines[index], [self.input_size[0],self.input_size[1]], augment=self.is_train)
         
         batch_hm = np.zeros((self.output_size[0], self.output_size[1], self.num_classes), dtype=np.float32)
@@ -198,9 +198,7 @@ class Bbox3dDatasets(Dataset):
         batch_center_mask = np.zeros((self.output_size[0], self.output_size[1]), dtype=np.float32)
         
         if len(box_cls) != 0: # 如果有目标
-            #-------------------------------------------------#
-            #   转换成相对于特征层的大小
-            #-------------------------------------------------#
+            # 转换成相对于特征层的大小 !!!
             # 取出宽高(相对于特征层), 用于绘制热力图
             fp_boxes = np.array(correct_box2d, dtype=np.float32)
             fp_boxes[:,0] = fp_boxes[:,0] / self.input_size[1] * self.output_size[1]
@@ -228,8 +226,8 @@ class Bbox3dDatasets(Dataset):
             fp_box_center_copy[1] = np.clip(fp_box_center_copy[1], 0, self.output_size[0] - 1)
 
             box_cls_id = int(box_cls[i])
-            # 计算每个目标对应3D box的最小外接矩形宽高, 作为热力图半径
 
+            # 计算每个目标对应3D box的最小外接矩形宽高, 作为热力图半径
             fp_box_w, fp_box_h = abs(fp_box_vertex[i, 1] - fp_box_vertex[i, 3]), abs(fp_box_vertex[i, 0] - fp_box_vertex[i, 6])
             if fp_box_w > 0 and fp_box_h > 0:
                 radius = gaussian_radius((math.ceil(fp_box_h), math.ceil(fp_box_w)))

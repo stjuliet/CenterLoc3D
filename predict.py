@@ -1,4 +1,4 @@
-
+# predict func
 from box_predict import Bbox3dPred
 from PIL import Image
 

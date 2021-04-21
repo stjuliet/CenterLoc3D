@@ -1,10 +1,13 @@
+# multi loss
 import torch
 import torch.nn.functional as F
 from utils import cal_pred_2dvertex
 import numpy as np
 
+
 def focal_loss(pred, target):
-    pred = pred.permute(0,2,3,1)
+    # pred: [bt, xx, 128, 128]
+    pred = pred.permute(0,2,3,1)  # [bt, xx, 128, 128] -> [bt, 128, 128, xx]
 
     #-------------------------------------------------------------------------#
     #   找到每张图片的正样本和负样本
@@ -50,12 +53,13 @@ def reg_l1_loss(pred, target, mask, index):
     loss = loss / (mask.sum() + 1e-4)
     return loss
 
-def reproject_l1_loss(pred_vertex, target_hm, calib_matrix, pred_box_size, mask, base_point, index, perspective, fp_size, input_size, raw_img_hs, raw_img_ws):
 
+def reproject_l1_loss(pred_vertex, target_hm, calib_matrix, pred_box_size, mask, base_point, index, perspective, fp_size, input_size, raw_img_hs, raw_img_ws):
+    # 反投影损失
     featmap_h, featmap_w = fp_size  # feature_map尺寸 128, 128
     input_h, input_w = input_size[0], input_size[1]
     
-    # pred是计算到特征图上的尺寸, 恢复到原始图像    
+    # pred是计算到特征图上的尺寸, 恢复到原始图像
     pred_vertex = pred_vertex.permute(0,2,3,1)
 
     # 通过预测尺寸和原始base_point，计算顶点与预测顶点之差作为loss

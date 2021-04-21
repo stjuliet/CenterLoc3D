@@ -1,7 +1,8 @@
+# resnets + fpn
 import math
 import torch
 import torch.nn as nn
-# from torchsummary import summary
+from torchsummary import summary
 from backbone import resnet18, resnet34, resnet50, resnet101, resnet152
 
 
@@ -199,7 +200,8 @@ if __name__ == "__main__":
     feature = torch.randn((1, 3, 512, 512))
     model = KeyPointDetection(2, num_classes=3)
     bt_hm, bt_center, bt_vertex, bt_size = model(feature)
+    print(bt_center.shape)
     print(bt_size.shape)
     # 输出summary的时候，model中返回特征图不能以list形式打包返回
-    # print(summary(model,(3, 512, 512), batch_size=1, device='cpu'))
+    print(summary(model,(3, 512, 512), batch_size=1, device='cpu'))
 
