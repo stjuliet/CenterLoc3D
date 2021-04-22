@@ -9,28 +9,20 @@ def focal_loss(pred, target):
     # pred: [bt, xx, 128, 128]
     pred = pred.permute(0,2,3,1)  # [bt, xx, 128, 128] -> [bt, 128, 128, xx]
 
-    #-------------------------------------------------------------------------#
-    #   找到每张图片的正样本和负样本
-    #   一个真实框对应一个正样本
-    #   除去正样本的特征点，其余为负样本
-    #-------------------------------------------------------------------------#
+    # 找到每张图片的正样本和负样本
+    # 一个真实框对应一个正样本
+    # 除去正样本的特征点，其余为负样本
     pos_inds = target.eq(1).float()  # 等于
     neg_inds = target.lt(1).float()  # 小于
-    #-------------------------------------------------------------------------#
-    #   正样本特征点附近的负样本的权值更小一些
-    #-------------------------------------------------------------------------#
+    # 正样本特征点附近的负样本的权值更小一些
     neg_weights = torch.pow(1 - target, 4)
     
     pred = torch.clamp(pred, 1e-6, 1 - 1e-6)
-    #-------------------------------------------------------------------------#
-    #   计算focal loss。难分类样本权重大，易分类样本权重小。
-    #-------------------------------------------------------------------------#
+    # 计算focal loss。难分类样本权重大，易分类样本权重小
     pos_loss = torch.log(pred) * torch.pow(1 - pred, 2) * pos_inds
     neg_loss = torch.log(1 - pred) * torch.pow(pred, 2) * neg_weights * neg_inds
     
-    #-------------------------------------------------------------------------#
-    #   进行损失的归一化
-    #-------------------------------------------------------------------------#
+    # 进行损失的归一化
     num_pos = pos_inds.float().sum()
     pos_loss = pos_loss.sum()
     neg_loss = neg_loss.sum()
@@ -43,9 +35,7 @@ def focal_loss(pred, target):
 
 
 def reg_l1_loss(pred, target, mask, index):
-    #--------------------------------#
-    #   计算l1_loss
-    #--------------------------------#
+    # 计算l1_loss
     pred = pred.permute(0,2,3,1)  # [bt, h, w, channel]
     expand_mask = torch.unsqueeze(mask,-1).repeat(1,1,1,index)  # 最后一个2对应维度数，需要变化
 
@@ -65,7 +55,7 @@ def reproject_l1_loss(pred_vertex, target_hm, calib_matrix, pred_box_size, mask,
     # 通过预测尺寸和原始base_point，计算顶点与预测顶点之差作为loss
     batch_size = pred_vertex.shape[0]
     batch_calc_vertex = []
-    calc_vertex = np.zeros((featmap_h, featmap_w, 16), dtype=np.float32)    
+    calc_vertex = np.zeros((featmap_h, featmap_w, 16), dtype=np.float32)
     for b in range(batch_size):
         image_h, image_w = raw_img_hs[b], raw_img_ws[b]
         pred_vertex[b, :, :, 0:16:2] = pred_vertex[b, :, :, 0:16:2] * max(image_w, image_h) / featmap_h

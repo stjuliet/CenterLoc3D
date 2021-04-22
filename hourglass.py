@@ -123,6 +123,18 @@ class HourglassNet(nn.Module):
             nn.Conv2d(inplanes, outplanes, kernel_size=1),
             nn.BatchNorm2d(outplanes),
             nn.ReLU())
+    
+    def freeze_backbone(self):
+        freeze_list = [self.head, self.hg]
+        for module in freeze_list:
+            for param in module.parameters():
+                param.requires_grad = False
+
+    def unfreeze_backbone(self):
+        freeze_list = [self.head, self.hg]
+        for module in freeze_list:
+            for param in module.parameters():
+                param.requires_grad = True
 
     def forward(self, x):
         # head

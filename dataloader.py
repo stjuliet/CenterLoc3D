@@ -147,7 +147,7 @@ class Bbox3dDatasets(Dataset):
             hue = rand(-hue, hue)
             sat = rand(1, sat) if rand()<.5 else 1/rand(1, sat)
             val = rand(1, val) if rand()<.5 else 1/rand(1, val)
-            x = cv2.cvtColor(np.array(image,np.float32)/255, cv2.COLOR_RGB2HSV)
+            x = cv.cvtColor(np.array(image,np.float32)/255, cv.COLOR_RGB2HSV)
             x[..., 0] += hue*360
             x[..., 0][x[..., 0]>1] -= 1
             x[..., 0][x[..., 0]<0] += 1
@@ -156,7 +156,7 @@ class Bbox3dDatasets(Dataset):
             x[x[:,:, 0]>360, 0] = 360
             x[:, :, 1:][x[:, :, 1:]>1] = 1
             x[x<0] = 0
-            image = cv2.cvtColor(x, cv2.COLOR_HSV2RGB)*255
+            image = cv.cvtColor(x, cv.COLOR_HSV2RGB)*255
 
             return image, calib_matrix, correct_box2d, box_cls, correct_box_center, correct_box_vertex, box_size, box_perspective, box_base_point, image_w, image_h
         else:
@@ -219,28 +219,22 @@ class Bbox3dDatasets(Dataset):
         for i in range(len(box_cls)):
             fp_box_center_copy = fp_box_center[i].copy()
             fp_box_center_copy = np.array(fp_box_center_copy)
-            #-------------------------------------------------#
-            #   防止中心点超出特征层的范围
-            #-------------------------------------------------#
+            # 防止中心点超出特征层的范围
             fp_box_center_copy[0] = np.clip(fp_box_center_copy[0], 0, self.output_size[1] - 1)
             fp_box_center_copy[1] = np.clip(fp_box_center_copy[1], 0, self.output_size[0] - 1)
 
             box_cls_id = int(box_cls[i])
 
-            # 计算每个目标对应3D box的最小外接矩形宽高, 作为热力图半径
-            fp_box_w, fp_box_h = abs(fp_box_vertex[i, 1] - fp_box_vertex[i, 3]), abs(fp_box_vertex[i, 0] - fp_box_vertex[i, 6])
+            # 计算每个目标对应3D box的最小外接矩形宽高, 作为热力图半径 !!!
+            fp_box_w, fp_box_h = abs(fp_box_vertex[i, 2] - fp_box_vertex[i, 6]), abs(fp_box_vertex[i, 1] - fp_box_vertex[i, 13])
             if fp_box_w > 0 and fp_box_h > 0:
                 radius = gaussian_radius((math.ceil(fp_box_h), math.ceil(fp_box_w)))
                 radius = max(0, int(radius))
-                #-------------------------------------------------#
-                #   计算真实框所属的特征点
-                #-------------------------------------------------#
+                # 计算真实框所属的特征点
                 ct = np.array([fp_box_center_copy[0], fp_box_center_copy[1]], dtype=np.float32)
                 ct_int = ct.astype(np.int32)
 
-                #----------------------------#
-                #   绘制高斯热力图
-                #----------------------------#
+                # 绘制高斯热力图
                 batch_hm[:, :, box_cls_id] = draw_gaussian(batch_hm[:, :, box_cls_id], ct_int, radius)
                 batch_center_reg[ct_int[1], ct_int[0]] = ct - ct_int
                 batch_vertex_reg[ct_int[1], ct_int[0]] = fp_box_vertex[i]
@@ -248,7 +242,6 @@ class Bbox3dDatasets(Dataset):
                 batch_box_perspective[ct_int[1], ct_int[0]] = box_perspective[i]
                 batch_base_point[ct_int[1], ct_int[0]] = box_base_point[i]
                 batch_center_mask[ct_int[1], ct_int[0]] = 1
-
 
         img = np.array(image_data, dtype=np.float32)[:,:,::-1]  # RGB -> BGR
         img = np.transpose(preprocess_image(img), (2, 0, 1))  # BGR -> RGB
@@ -285,4 +278,3 @@ def bbox3d_dataset_collate(batch):
     raw_img_hs = np.array(raw_img_hs)
     raw_img_ws = np.array(raw_img_ws)
     return imgs, calib_matrixs, batch_hms, batch_center_regs, batch_vertex_regs, batch_size_regs, batch_center_masks, batch_box_perspectives, batch_base_points, raw_img_ws, raw_img_hs
-

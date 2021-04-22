@@ -11,7 +11,7 @@ from torch.autograd import Variable
 
 from fpn import KeyPointDetection
 from hourglass import HourglassNet, HgResBlock, Hourglass
-from utils import decode_bbox, letterbox_image
+from utils import decode_bbox, letterbox_image, nms
 
 
 def preprocess_image(image):
@@ -24,13 +24,11 @@ def preprocess_image(image):
 # model_path、classes_path和backbone
 class Bbox3dPred(object):
     _defaults = {
-        "model_path"        : 'logs/Epoch1-Total_Loss12055.5039-Val_Loss0.0000.pth',
+        "model_path"        : 'logs\Epoch7-Total_train_Loss48.7350-Val_Loss43.3928.pth',
         "classes_path"      : 'model_data/classes.txt',
-        # "model_path"        : 'model_data/centernet_hourglass_coco.h5',
-        # "classes_path"      : 'model_data/coco_classes.txt',
         "backbone"          : "resnet50",
         "image_size"        : [512,512,3],
-        "confidence"        : 0.3,
+        "confidence"        : 0.1,
         # backbone为resnet50时建议设置为True
         # backbone为hourglass时建议设置为False
         # 也可以根据检测效果自行选择
@@ -47,8 +45,6 @@ class Bbox3dPred(object):
         else:
             return "Unrecognized attribute name '" + n + "'"
     
-    # backbone-resnets对应序号
-    self.backbone_resnet_index = {"resnet18": 0, "resnet34": 1, "resnet50": 2, "resnet101": 3, "resnet152": 4}
 
     # 初始化Bbox3d
     def __init__(self, **kwargs):
@@ -66,11 +62,12 @@ class Bbox3dPred(object):
 
     # 载入模型
     def generate(self):
+        self.backbone_resnet_index = {"resnet18": 0, "resnet34": 1, "resnet50": 2, "resnet101": 3, "resnet152": 4}
         # 计算类别数
         self.num_classes = len(self.class_names)
         # 创建模型
         if self.backbone[:-2] == "resnet":
-            self.model = KeyPointDetection(model_index=self.backbone_resnet_index[self.backbone[-2:]], num_classes=self.num_classes, pretrained_weights=False)
+            self.model = KeyPointDetection(model_index=self.backbone_resnet_index[self.backbone], num_classes=self.num_classes, pretrained_weights=False)
         if self.backbone == "hourglass":
             self.model = HourglassNet(2, 1, 256, 3, HgResBlock, inplanes=3)
 
@@ -85,7 +82,7 @@ class Bbox3dPred(object):
         if self.cuda:
             os.environ["CUDA_VISIBLE_DEVICES"] = '0'
             self.model.cuda()
-                                    
+
         print('{} model, classes loaded.'.format(self.model_path))
 
         # 画框设置不同的颜色
@@ -103,7 +100,7 @@ class Bbox3dPred(object):
         # 给图像增加灰条，实现不失真的resize
         # 也可以直接resize进行识别
         if self.letterbox_image:
-            crop_img = np.array(letterbox_image(image, (self.model_image_size[1], self.model_image_size[0])))
+            crop_img = np.array(letterbox_image(image, (self.image_size[1], self.image_size[0])))
             crop_img = np.array(crop_img, dtype = np.float32)[:,:,::-1]
         else:
             crop_img = image.convert('RGB')
@@ -113,7 +110,7 @@ class Bbox3dPred(object):
         letter_img = np.array(crop_img, dtype = np.float32)
         
         # 图片预处理，归一化。获得的photo的shape为[1, 3, 512, 512]
-        photo = np.reshape(np.transpose(preprocess_image(crop_img), (2, 0, 1)), [1, self.image_size[2], self.image_size[0], self.image_size[1]])
+        photo = np.reshape(np.transpose(preprocess_image(photo), (2, 0, 1)), [1, self.image_size[2], self.image_size[0], self.image_size[1]])
         
         with torch.no_grad():
             images = Variable(torch.from_numpy(np.asarray(photo)).type(torch.FloatTensor))
@@ -128,20 +125,20 @@ class Bbox3dPred(object):
 
             # 保存热力图
             # 提取属于第0类的热力图
-            hotmaps = output_hm[0].cpu().numpy().transpose(1, 2, 0)[..., 0]
-            print(hotmaps.shape)
+            # hotmaps = output_hm[0].cpu().numpy().transpose(1, 2, 0)[..., 0]
+            # print(hotmaps.shape)
 
-            import matplotlib.pyplot as plt
+            # import matplotlib.pyplot as plt
 
-            heatmap = np.maximum(hotmaps, 0)
-            heatmap /= np.max(heatmap)
-            plt.matshow(heatmap)
-            plt.show()
+            # heatmap = np.maximum(hotmaps, 0)
+            # heatmap /= np.max(heatmap)
+            # plt.matshow(heatmap)
+            # plt.show()
 
-            heatmap = cv.resize(heatmap, (self.image_size[0], self.image_size[1]))
-            heatmap = np.uint8(255 * heatmap)
-            heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
-            superimposed_img = heatmap * 0.4 + letter_img
+            # heatmap = cv.resize(heatmap, (self.image_size[0], self.image_size[1]))
+            # heatmap = np.uint8(255 * heatmap)
+            # heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
+            # superimposed_img = heatmap * 0.4 + letter_img
             # cv.imwrite('img/hotmap.jpg', superimposed_img)
 
             # 利用预测结果进行解码
@@ -155,11 +152,13 @@ class Bbox3dPred(object):
             #   所以我还是写了另外一段对框进行非极大抑制的代码
             #   实际测试中，hourglass为主干网络时有无额外的nms相差不大，resnet相差较大。
             #-------------------------------------------------------#
-        #     try:
-        #         if self.nms:
-        #             outputs = np.array(nms(outputs, self.nms_threhold))
-        #     except:
-        #         pass
+            try:
+                if self.nms:
+                    pass
+                # 后续添加3d box iou 计算公式
+                # outputs = np.array(nms(outputs, self.nms_threhold))
+            except:
+                pass
             
             output = outputs[0]
             if len(output) <= 0:
@@ -167,14 +166,13 @@ class Bbox3dPred(object):
             
             norm_center, norm_vertex, box_size, det_conf, det_cls = output[:,:2], output[:,2:18], output[:,18:21], output[:,21], output[:,22]
             
-            # 筛选出其中得分高于confidence的框 
+            # 筛选出其中得分高于confidence的框
             top_indices = [i for i, conf in enumerate(det_conf) if conf >= self.confidence]
             top_conf = det_conf[top_indices]
             top_label_indices = det_cls[top_indices].tolist()
             top_norm_center = norm_center[top_indices]
             top_norm_vertex = norm_vertex[top_indices]
             top_box_size = box_size[top_indices]
-        #     top_xmin, top_ymin, top_xmax, top_ymax = np.expand_dims(det_xmin[top_indices],-1),np.expand_dims(det_ymin[top_indices],-1),np.expand_dims(det_xmax[top_indices],-1),np.expand_dims(det_ymax[top_indices],-1)
             
             # 将坐标还原至原图像
             top_norm_center[:, 0] = top_norm_center[:, 0] * max(image_shape[0], image_shape[1])
@@ -183,11 +181,6 @@ class Bbox3dPred(object):
             top_norm_vertex[:, 0:16:2] = top_norm_center[:, 0:16:2] * max(image_shape[0], image_shape[1])
             top_norm_vertex[:, 1:16:2] = top_norm_center[:, 1:16:2] * max(image_shape[0], image_shape[1]) - abs(image_shape[0]-image_shape[1])//2.
 
-
-        #     #-----------------------------------------------------------#
-        #     #   去掉灰条部分
-        #     #-----------------------------------------------------------#
-        #     boxes = centernet_correct_boxes(top_ymin,top_xmin,top_ymax,top_xmax,np.array([self.image_size[0],self.image_size[1]]),image_shape)
 
         font = ImageFont.truetype(font='model_data/simhei.ttf',size=np.floor(3e-2 * np.shape(image)[1] + 0.5).astype('int32'))
 
@@ -206,7 +199,7 @@ class Bbox3dPred(object):
             draw = ImageDraw.Draw(image)
             label_size = draw.textsize(label, font)
             label = label.encode('utf-8')
-            print(label)
+            # print(label)
             draw.text((cx, cy), str(label,'UTF-8'), fill=(0, 0, 0), font=font)
 
             # 3D box

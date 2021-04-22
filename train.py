@@ -1,11 +1,9 @@
-#-------------------------------------#
-#       对数据集进行训练
-#-------------------------------------#
+# train datasets
 import os
 import time
-
 import cv2 as cv
 import numpy as np
+
 import torch
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
@@ -13,20 +11,21 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
+
 from tqdm import tqdm
+from tensorboardX import SummaryWriter
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw
 
 from fpn import KeyPointDetection
+from hourglass import HourglassNet, HgResBlock
 from loss import focal_loss, reg_l1_loss, reproject_l1_loss
 from dataloader import Bbox3dDatasets, bbox3d_dataset_collate
 
 mean = [0.40789655, 0.44719303, 0.47026116]
 std = [0.2886383, 0.27408165, 0.27809834]
 
-#---------------------------------------------------#
-#   获得类
-#---------------------------------------------------#
+
 def get_classes(classes_path):
     '''loads the classes'''
     with open(classes_path) as f:
@@ -35,13 +34,25 @@ def get_classes(classes_path):
     return class_names
 
 def get_lr(optimizer):
+    '''get lr value'''
     for param_group in optimizer.param_groups:
         return param_group['lr']
 
-def fit_one_epoch(net,epoch,epoch_size,epoch_size_val,gen,genval,Epoch,cuda):
-    total_r_loss = 0
-    total_c_loss = 0
-    total_loss = 0
+def fit_one_epoch(net, epoch, epoch_size, epoch_size_val, gen, genval, Epoch, cuda, writer):
+    """
+    func: 训练一个epoch
+    epoch: 当前轮数
+    epoch_size: 总训练迭代数
+    epoch_size_val: 总验证迭代数
+    gen: 训练数据
+    genval: 验证数据
+    Epoch: 总训练轮数
+    cuda: 是否使用cuda
+    writer: tensorboard绘制loss曲线图
+    """
+    global train_tensorboard_step, val_tensorboard_step
+    total_cls_loss, total_center_off_loss, total_vertex_loss, total_size_loss, total_reproj_loss, total_loss = 0, 0, 0, 0, 0, 0
+    total_train_loss = 0
     val_loss = 0
 
     net.train()
@@ -59,26 +70,40 @@ def fit_one_epoch(net,epoch,epoch_size,epoch_size_val,gen,genval,Epoch,cuda):
             optimizer.zero_grad()
 
             pred_hm, pred_center, pred_vertex, pred_size = net(batch_imgs)
+
             cls_loss = focal_loss(pred_hm, batch_hms)
             center_off_loss = reg_l1_loss(pred_center, batch_center_regs, batch_center_masks, index = 2)
-            vertex_loss = reg_l1_loss(pred_vertex, batch_vertex_regs, batch_center_masks, index = 16)
-            size_loss = reg_l1_loss(pred_size, batch_size_regs, batch_center_masks, index = 3)
-            reproj_loss = reproject_l1_loss(pred_vertex, batch_hms, batch_calib_matrixs, pred_size, batch_center_masks, batch_raw_box_base_points, 16, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
+            vertex_loss = 0.1*reg_l1_loss(pred_vertex, batch_vertex_regs, batch_center_masks, index = 16)
+            size_loss = 0.1*reg_l1_loss(pred_size, batch_size_regs, batch_center_masks, index = 3)
+            reproj_loss = 0.1*reproject_l1_loss(pred_vertex, batch_hms, batch_calib_matrixs, pred_size, batch_center_masks, batch_raw_box_base_points, 16, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
             
-            loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss  # 需要调整权重  123
+            loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss
 
-            total_loss += loss.item()
-            total_c_loss += cls_loss.item()
-            total_r_loss += center_off_loss.item() + vertex_loss.item()
+            total_train_loss += loss.item()
+            total_cls_loss += cls_loss.item()
+            total_center_off_loss += center_off_loss.item()
+            total_vertex_loss += vertex_loss.item()
+            total_size_loss += size_loss.item()
+            total_reproj_loss += reproj_loss.item()
 
             loss.backward()
             optimizer.step()
             
-            pbar.set_postfix(**{'total_r_loss'  : total_r_loss / (iteration + 1), 
-                                'total_c_loss'  : total_c_loss / (iteration + 1),
+            # 每一个iteration都写入  step从1开始
+            writer.add_scalar('Train_loss', loss, train_tensorboard_step)
+            train_tensorboard_step += 1
+
+            pbar.set_postfix(**{'loss'  : total_train_loss / (iteration + 1),
+                                'cls_loss'  : total_cls_loss / (iteration + 1),
+                                'center_loss'  : total_center_off_loss / (iteration + 1),
+                                'vertex_loss'  : total_vertex_loss / (iteration + 1),
+                                'size_loss'  : total_size_loss / (iteration + 1),
+                                'reproj_loss'  : total_reproj_loss / (iteration + 1),
                                 'lr'            : get_lr(optimizer)})
             pbar.update(1)
 
+    # 将loss写入tensorboard，下面注释的是每个世代保存一次
+    # writer.add_scalar('Train_loss', total_train_loss/(iteration+1), epoch)
 
     net.eval()
     print('Start Validation')
@@ -95,69 +120,71 @@ def fit_one_epoch(net,epoch,epoch_size,epoch_size_val,gen,genval,Epoch,cuda):
                 batch_imgs, batch_calib_matrixs, batch_hms, batch_center_regs, batch_vertex_regs, batch_size_regs, batch_center_masks, batch_box_perspectives, batch_raw_box_base_points, raw_img_ws, raw_img_hs = batch
 
                 pred_hm, pred_center, pred_vertex, pred_size = net(batch_imgs)
+
                 cls_loss = focal_loss(pred_hm, batch_hms)
                 center_off_loss = reg_l1_loss(pred_center, batch_center_regs, batch_center_masks, index = 2)
-                vertex_loss = reg_l1_loss(pred_vertex, batch_vertex_regs, batch_center_masks, index = 16)
-                size_loss = reg_l1_loss(pred_size, batch_size_regs, batch_center_masks, index = 3)
-                reproj_loss = reproject_l1_loss(pred_vertex, batch_hms, batch_calib_matrixs, pred_size, batch_center_masks, batch_raw_box_base_points, 16, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
+                vertex_loss = 0.1*reg_l1_loss(pred_vertex, batch_vertex_regs, batch_center_masks, index = 16)
+                size_loss = 0.1*reg_l1_loss(pred_size, batch_size_regs, batch_center_masks, index = 3)
+                reproj_loss = 0.1*reproject_l1_loss(pred_vertex, batch_hms, batch_calib_matrixs, pred_size, batch_center_masks, batch_raw_box_base_points, 16, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
                 
-                loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss  # 需要调整权重  123
+                loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss
 
                 val_loss += loss.item()
 
-            pbar.set_postfix(**{'total_loss': val_loss / (iteration + 1)})
-            pbar.update(1)
-            
+                # writer.add_scalar('Val_loss', loss, val_tensorboard_step)
+                # val_tensorboard_step += 1
+
+                pbar.set_postfix(**{'val_loss': val_loss / (iteration + 1)})
+                pbar.update(1)
+
+    # 每个epoch写入一次  epoch从1开始
+    writer.add_scalar('Val_loss', val_loss / (epoch_size_val+1), epoch + 1)
+
     print('Finish Validation')
     print('Epoch:'+ str(epoch+1) + '/' + str(Epoch))
-    print('Total Loss: %.4f || Val Loss: %.4f ' % (total_loss/(epoch_size+1),val_loss/(epoch_size_val+1)))
+    print('Total train loss: %.4f || Val loss: %.4f ' % (total_train_loss/(epoch_size+1),val_loss/(epoch_size_val+1)))
 
     print('Saving state, iter:', str(epoch+1))
-    torch.save(model.state_dict(), 'logs/Epoch%d-Total_Loss%.4f-Val_Loss%.4f.pth'%((epoch+1),total_loss/(epoch_size+1),val_loss/(epoch_size_val+1)))
+    torch.save(model.state_dict(), 'logs/Epoch%d-Total_train_Loss%.4f-Val_Loss%.4f.pth'%((epoch+1),total_train_loss/(epoch_size+1),val_loss/(epoch_size_val+1)))
     return val_loss/(epoch_size_val+1)
     
 if __name__ == "__main__":
-    #-------------------------------------------#
-    #   输入图片的大小
-    #-------------------------------------------#
-    input_shape = (512,512,3)
+    # 输入图片的大小
+    input_shape = (512, 512, 3)
     output_shape = (128, 128)
-    #-----------------------------#
-    #   训练前一定要注意注意修改
-    #   classes_path对应的txt的内容
-    #   修改成自己需要分的类
-    #-----------------------------#
+
+    # 类别文件
     classes_path = 'model_data/classes.txt'
-    #----------------------------------------------------#
-    #   获取classes和数量
-    #----------------------------------------------------#
+
+    # 获取classes和数量
     class_names = get_classes(classes_path)
     num_classes = len(class_names)
-    #-------------------------------------------#
-    #   用于设定在使用resnet50作为主干网络时，
-    #   是否使用imagenet-resnet50的预训练权重。
-    #   仅在主干网络为resnet50时有作用。
-    #   默认为False
-    #-------------------------------------------#
+
+    # 是否使用imagenet-resnet50的预训练权重。
     pretrain = True
 
-    #-------------------------------#
-    #   是否使用Cuda
-    #   没有GPU可以设置成False
-    #-------------------------------#
+    # 指定backbone
+    backbone = "resnet50"
+
+    # 是否使用Cuda
     Cuda = True
 
-    #----------------------------------------------------#
-    #   获取模型
-    #----------------------------------------------------#
-    model = KeyPointDetection(model_index=2, num_classes=num_classes, pretrained_weights=pretrain)
+    # 获取模型
+    backbone_resnet_index = {"resnet18": 0, "resnet34": 1, "resnet50": 2, "resnet101": 3, "resnet152": 4}
+    if backbone[:-2] == "resnet":
+        model = KeyPointDetection(model_index=backbone_resnet_index[backbone], num_classes=num_classes, pretrained_weights=pretrain)
+    if backbone == "hourglass":
+        model = HourglassNet(2, 1, 256, 3, HgResBlock, inplanes=3)
 
-    #------------------------------------------------------#
-    #   权值文件请看README，百度网盘下载
-    #------------------------------------------------------#
-    # model_path = r"model_data/centernet_resnet50_voc.pth"
+
+    # 加载训练好的模型权重
+    # model_path = r"model_data/centernet_hourglass_coco.pth"
     # print('Loading weights into state dict...')
-    # model_dict = model.state_dict() 
+    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # state_dict = torch.load(model_path, map_location=device)
+    # model.load_state_dict(state_dict,strict=False)
+
+    # model_dict = model.state_dict()
     # pretrained_dict = torch.load(model_path)
     # pretrained_dict = {k: v for k, v in pretrained_dict.items() if np.shape(model_dict[k]) ==  np.shape(v)}
     # model_dict.update(pretrained_dict)
@@ -167,21 +194,17 @@ if __name__ == "__main__":
     net = model.train()
 
     if Cuda:
-        # net = torch.nn.DataParallel(model)
-        # cudnn.benchmark = True
+        net = torch.nn.DataParallel(model)
+        cudnn.benchmark = True
         net = net.cuda()
 
-    #----------------------------------------------------#
-    #   获得图片路径和标签
-    #----------------------------------------------------#
+    # 获得图片路径和标签
     annotation_path = 'DATA2021_train.txt'
-    #----------------------------------------------------------------------#
-    #   验证集的划分在train.py代码里面进行
-    #   2007_test.txt和2007_val.txt里面没有内容是正常的。训练不会使用到。
-    #   当前划分方式下，验证集和训练集的比例为1:9
-    #----------------------------------------------------------------------#
-    val_split = 0
-    # 6:2:2的划分方式，验证集从整个训练集中划分 2/(6+2)=0.25
+
+    # 划分验证集
+    # 验证集和训练集的比例为1:9
+    # 8:1:1
+    val_split = 1/9
     with open(annotation_path) as f:
         lines = f.readlines()
     np.random.seed(10101)
@@ -189,21 +212,29 @@ if __name__ == "__main__":
     np.random.seed(None)
     num_val = int(len(lines)*val_split)
     num_train = len(lines) - num_val
+
+    # 构建绘制loss曲线图writer
+    writer = SummaryWriter(log_dir='train-logs',flush_secs=60)
+    if Cuda:
+        graph_inputs = torch.from_numpy(np.random.rand(1,3,input_shape[0],input_shape[1])).type(torch.FloatTensor).cuda()
+    else:
+        graph_inputs = torch.from_numpy(np.random.rand(1,3,input_shape[0],input_shape[1])).type(torch.FloatTensor)
+    writer.add_graph(model, (graph_inputs,))
+
+    train_tensorboard_step = 1
+    val_tensorboard_step = 1
     
-    #------------------------------------------------------#
     #   主干特征提取网络特征通用，冻结训练可以加快训练速度
     #   也可以在训练初期防止权值被破坏。
     #   Init_Epoch为起始世代
     #   Freeze_Epoch为冻结训练的世代
     #   Epoch总训练世代
     #   提示OOM或者显存不足请调小Batch_size
-    #------------------------------------------------------#
+
     if True:
-        #--------------------------------------------#
-        #   BATCH_SIZE不要太小，不然训练效果很差
-        #--------------------------------------------#
+        # 超参数设置
         lr = 1e-3
-        Batch_size = 2
+        Batch_size = 32
         Init_Epoch = 0
         Freeze_Epoch = 50
         
@@ -214,101 +245,98 @@ if __name__ == "__main__":
         val_dataset = Bbox3dDatasets(lines[num_train:], input_shape, num_classes, False)
         gen = DataLoader(train_dataset, batch_size=Batch_size, num_workers=8, pin_memory=True,
                                 drop_last=True, collate_fn=bbox3d_dataset_collate)
-        gen_val = DataLoader(val_dataset, batch_size=Batch_size, num_workers=8,pin_memory=True, 
+        gen_val = DataLoader(val_dataset, batch_size=Batch_size, num_workers=8,pin_memory=True,
                                 drop_last=True, collate_fn=bbox3d_dataset_collate)
 
         epoch_size = num_train//Batch_size
         epoch_size_val = num_val//Batch_size
-        #------------------------------------#
-        #   冻结一定部分训练
-        #------------------------------------#
+
+        # 冻结一定部分训练
         model.freeze_backbone()
 
-        # 开始训练前展示训练样本
-        for step, data in enumerate(gen, start = 0):
-            # batch_center_reg: 中心点偏移量
-            img, calib_matrix, batch_hm, batch_center_reg, batch_vertex_reg, batch_size_reg, batch_center_mask, batch_box_perspective, batch_base_point, raw_img_w, raw_img_h = data
+        # # 开始训练前展示训练样本
+        # for step, data in enumerate(gen, start = 0):
+        #     # batch_center_reg: 中心点偏移量
+        #     img, calib_matrix, batch_hm, batch_center_reg, batch_vertex_reg, batch_size_reg, batch_center_mask, batch_box_perspective, batch_base_point, raw_img_w, raw_img_h = data
             
-            for num in range(len(img)):
-                plt.figure()
-                raw_img = img[num] # numpy格式
-                raw_img = raw_img.transpose(1, 2, 0)
-                raw_img = np.array((raw_img * std + mean) * 255).astype(np.uint8)
-                max_size=max(raw_img_w[num],raw_img_h[num])
-                minus_size=abs(raw_img_w[num]-raw_img_h[num])
+        #     for num in range(len(img)):
+        #         plt.figure()
+        #         raw_img = img[num] # numpy格式
+        #         raw_img = raw_img.transpose(1, 2, 0)
+        #         raw_img = np.array((raw_img * std + mean) * 255).astype(np.uint8)
+        #         max_size=max(raw_img_w[num],raw_img_h[num])
+        #         minus_size=abs(raw_img_w[num]-raw_img_h[num])
 
-                pil_raw_img=Image.fromarray(raw_img).resize((max_size,max_size)) # 返回PIL格式带灰条原图
-                draw=ImageDraw.Draw(pil_raw_img)
+        #         pil_raw_img=Image.fromarray(raw_img).resize((max_size,max_size)) # 返回PIL格式带灰条原图
+        #         draw=ImageDraw.Draw(pil_raw_img)
 
-                # 绘制中心点
-                t_list = np.where(batch_center_mask[num] == 1.0)  # 遍历图像域中所有目标点
-                for y, x in zip(t_list[0], t_list[1]):
-                    # 显示到带灰条原图上
-                    center = ([x, y] + batch_center_reg[num, y, x]) * max_size // 128
-                    vertex = batch_vertex_reg[num, y, x] * max_size // 128
+        #         # 绘制中心点
+        #         t_list = np.where(batch_center_mask[num] == 1.0)  # 遍历图像域中所有目标点
+        #         for y, x in zip(t_list[0], t_list[1]):
+        #             # 显示到带灰条原图上
+        #             center = ([x, y] + batch_center_reg[num, y, x]) * max_size // 128
+        #             vertex = batch_vertex_reg[num, y, x] * max_size // 128
 
-                    draw.ellipse([center[0], center[1], center[0]+5, center[1]+5], outline=(0, 0, 255), width = 1)
-                    cls_id = np.argmax(batch_hm[num, y, x])
-                    cls_name = class_names[cls_id]
-                    draw.text([center[0], center[1]-10], cls_name, fill=(255, 0, 0))
+        #             draw.ellipse([center[0], center[1], center[0]+5, center[1]+5], outline=(0, 0, 255), width = 1)
+        #             cls_id = np.argmax(batch_hm[num, y, x])
+        #             cls_name = class_names[cls_id]
+        #             draw.text([center[0], center[1]-10], cls_name, fill=(255, 0, 0))
 
-                    # 宽度方向
-                    # 0-1  2-3  4-5  6-7
-                    draw.line([vertex[0], vertex[1], vertex[2], vertex[3]], fill=128, width=2)
-                    draw.line([vertex[4], vertex[5], vertex[6], vertex[7]], fill=128, width=2)
-                    draw.line([vertex[8], vertex[9], vertex[10], vertex[11]], fill=128, width=2)
-                    draw.line([vertex[12], vertex[13], vertex[14], vertex[15]], fill=128, width=2)
+        #             # 宽度方向
+        #             # 0-1  2-3  4-5  6-7
+        #             draw.line([vertex[0], vertex[1], vertex[2], vertex[3]], fill=128, width=2)
+        #             draw.line([vertex[4], vertex[5], vertex[6], vertex[7]], fill=128, width=2)
+        #             draw.line([vertex[8], vertex[9], vertex[10], vertex[11]], fill=128, width=2)
+        #             draw.line([vertex[12], vertex[13], vertex[14], vertex[15]], fill=128, width=2)
 
-                    # 长度方向
-                    # 0-3 1-2 4-7 5-6
-                    draw.line([vertex[0], vertex[1], vertex[6], vertex[7]], fill=128, width=2)
-                    draw.line([vertex[2], vertex[3], vertex[4], vertex[5]], fill=128, width=2)
-                    draw.line([vertex[8], vertex[9], vertex[14], vertex[15]], fill=128, width=2)
-                    draw.line([vertex[10], vertex[11], vertex[12], vertex[13]], fill=128, width=2)
+        #             # 长度方向
+        #             # 0-3 1-2 4-7 5-6
+        #             draw.line([vertex[0], vertex[1], vertex[6], vertex[7]], fill=128, width=2)
+        #             draw.line([vertex[2], vertex[3], vertex[4], vertex[5]], fill=128, width=2)
+        #             draw.line([vertex[8], vertex[9], vertex[14], vertex[15]], fill=128, width=2)
+        #             draw.line([vertex[10], vertex[11], vertex[12], vertex[13]], fill=128, width=2)
 
-                    # 高度方向
-                    # 0-4 1-5 2-6 3-7
-                    draw.line([vertex[0], vertex[1], vertex[8], vertex[9]], fill=128, width=2)
-                    draw.line([vertex[2], vertex[3], vertex[10], vertex[11]], fill=128, width=2)
-                    draw.line([vertex[4], vertex[5], vertex[12], vertex[13]], fill=128, width=2)
-                    draw.line([vertex[6], vertex[7], vertex[14], vertex[15]], fill=128, width=2)
-                # del draw
+        #             # 高度方向
+        #             # 0-4 1-5 2-6 3-7
+        #             draw.line([vertex[0], vertex[1], vertex[8], vertex[9]], fill=128, width=2)
+        #             draw.line([vertex[2], vertex[3], vertex[10], vertex[11]], fill=128, width=2)
+        #             draw.line([vertex[4], vertex[5], vertex[12], vertex[13]], fill=128, width=2)
+        #             draw.line([vertex[6], vertex[7], vertex[14], vertex[15]], fill=128, width=2)
+        #         # del draw
 
-                plt.subplot(1,2,1)
-                plt.imshow(pil_raw_img)
+        #         plt.subplot(1,2,1)
+        #         plt.imshow(pil_raw_img)
 
-                # 绘制热力图
-                plt.subplot(1,2,2)
-                hotmaps = batch_hm[num][...,0]
-                print(hotmaps.shape)
-                heatmap = np.maximum(hotmaps, 0)
-                heatmap /= np.max(heatmap)
-                plt.imshow(heatmap)
+        #         # 绘制热力图
+        #         plt.subplot(1,2,2)
+        #         hotmaps = batch_hm[num][...,0]
+        #         print(hotmaps.shape)
+        #         heatmap = np.maximum(hotmaps, 0)
+        #         heatmap /= np.max(heatmap)
+        #         plt.imshow(heatmap)
 
-                # 将灰度图转换为伪彩色图
-                heatmap = cv.resize(heatmap, (512, 512))
-                heatmap = np.uint8(255 * heatmap)
-                heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
-                superimposed_img = heatmap * 0.4 + raw_img
-                cv.imwrite('img/hotmap.jpg', superimposed_img)
+        #         # 将灰度图转换为伪彩色图
+        #         heatmap = cv.resize(heatmap, (512, 512))
+        #         heatmap = np.uint8(255 * heatmap)
+        #         heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
+        #         superimposed_img = heatmap * 0.4 + raw_img
+        #         # cv.imwrite('img/hotmap.jpg', superimposed_img)
 
-                # plt.show()
+        #         # plt.show()
 
-                # 转换为
-                # plt.savefig("./hotmap.png")
-            # plt.show()
+        #         # 转换为
+        #         # plt.savefig("./hotmap.png")
+        #     plt.show()
 
 
         for epoch in range(Init_Epoch,Freeze_Epoch):
-            val_loss = fit_one_epoch(net,epoch,epoch_size,epoch_size_val,gen,gen_val,Freeze_Epoch,Cuda)
+            val_loss = fit_one_epoch(net,epoch,epoch_size,epoch_size_val,gen,gen_val,Freeze_Epoch,Cuda, writer)
             lr_scheduler.step(val_loss)
 
     if True:
-        #--------------------------------------------#
-        #   BATCH_SIZE不要太小，不然训练效果很差
-        #--------------------------------------------#
+        # 超参数设置
         lr = 1e-4
-        Batch_size = 1
+        Batch_size = 16
         Freeze_Epoch = 50
         Unfreeze_Epoch = 100
 
@@ -324,12 +352,11 @@ if __name__ == "__main__":
 
         epoch_size = num_train//Batch_size
         epoch_size_val = num_val//Batch_size
-        #------------------------------------#
-        #   解冻后训练
-        #------------------------------------#
+
+        # 解冻后训练
         model.unfreeze_backbone()
 
         for epoch in range(Freeze_Epoch,Unfreeze_Epoch):
-            val_loss = fit_one_epoch(net,epoch,epoch_size,epoch_size_val,gen,gen_val,Unfreeze_Epoch,Cuda)
+            val_loss = fit_one_epoch(net,epoch,epoch_size,epoch_size_val,gen,gen_val,Unfreeze_Epoch,Cuda, writer)
             lr_scheduler.step(val_loss)
 
