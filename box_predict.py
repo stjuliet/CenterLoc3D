@@ -24,16 +24,16 @@ def preprocess_image(image):
 # model_path、classes_path和backbone
 class Bbox3dPred(object):
     _defaults = {
-        "model_path"        : 'logs\Epoch7-Total_train_Loss48.7350-Val_Loss43.3928.pth',
+        "model_path"        : 'logs\Epoch120-Total_train_Loss2.7936-Val_Loss4.7216.pth',
         "classes_path"      : 'model_data/classes.txt',
         "backbone"          : "resnet50",
         "image_size"        : [512,512,3],
-        "confidence"        : 0.1,
+        "confidence"        : 0.15,
         # backbone为resnet50时建议设置为True
         # backbone为hourglass时建议设置为False
         # 也可以根据检测效果自行选择
-        "nms"               : False,
-        "nms_threhold"      : 0.3,
+        "nms"               : True,
+        "nms_threhold"      : 0.5,
         "cuda"              : True,
         "letterbox_image"   : True
     }
@@ -142,7 +142,7 @@ class Bbox3dPred(object):
             # cv.imwrite('img/hotmap.jpg', superimposed_img)
 
             # 利用预测结果进行解码
-            outputs = decode_bbox(output_hm, output_center, output_vertex, output_size, self.image_size, self.confidence, self.cuda)
+            outputs = decode_bbox(output_hm, output_center, output_vertex, output_size, self.image_size, self.confidence, self.cuda, 50)
 
             #-------------------------------------------------------#
             #   对于centernet网络来讲，确立中心非常重要。
@@ -152,9 +152,14 @@ class Bbox3dPred(object):
             #   所以我还是写了另外一段对框进行非极大抑制的代码
             #   实际测试中，hourglass为主干网络时有无额外的nms相差不大，resnet相差较大。
             #-------------------------------------------------------#
+            empty_box = []
             try:
                 if self.nms:
-                    pass
+                    for i in range(len(outputs)):
+                        empty_box.append([outputs[i][16], outputs[i][17], outputs[i][4], outputs[i][5], outputs[i][22]])
+                    np_det_results = np.array(empty_box, dtype=np.float32)
+                    outputs = np.array(nms(np_det_results, self.nms_threhold))
+                    # pass
                 # 后续添加3d box iou 计算公式
                 # outputs = np.array(nms(outputs, self.nms_threhold))
             except:
@@ -178,50 +183,127 @@ class Bbox3dPred(object):
             top_norm_center[:, 0] = top_norm_center[:, 0] * max(image_shape[0], image_shape[1])
             top_norm_center[:, 1] = top_norm_center[:, 1] * max(image_shape[0], image_shape[1]) - abs(image_shape[0]-image_shape[1])//2.
 
-            top_norm_vertex[:, 0:16:2] = top_norm_center[:, 0:16:2] * max(image_shape[0], image_shape[1])
-            top_norm_vertex[:, 1:16:2] = top_norm_center[:, 1:16:2] * max(image_shape[0], image_shape[1]) - abs(image_shape[0]-image_shape[1])//2.
+            top_norm_vertex[:, 0:16:2] = top_norm_vertex[:, 0:16:2] * max(image_shape[0], image_shape[1])
+            top_norm_vertex[:, 1:16:2] = top_norm_vertex[:, 1:16:2] * max(image_shape[0], image_shape[1]) - abs(image_shape[0]-image_shape[1])//2.
 
 
-        font = ImageFont.truetype(font='model_data/simhei.ttf',size=np.floor(3e-2 * np.shape(image)[1] + 0.5).astype('int32'))
+        font = ImageFont.truetype(font='model_data/simhei.ttf',size=np.floor(3e-2 * np.shape(image)[1] + 0.5).astype('int32')//2)
 
         thickness = max((np.shape(image)[0] + np.shape(image)[1]) // self.image_size[0], 1)
 
-        for i, c in enumerate(top_label_indices):
-            predicted_class = self.class_names[int(c)]
-            score = top_conf[i]
 
+        keep = []
+        for i in range(len(top_label_indices)):
+            predicted_class = self.class_names[int(top_label_indices[i])]
+            score = top_conf[i]
             cx, cy = top_norm_center[i].astype(np.int32)
             vertex = top_norm_vertex[i].astype(np.int32)
             l, w, h = top_box_size[i]
 
-            # 类别, 置信度
-            label = '{} {:.2f}'.format(predicted_class, score)
-            draw = ImageDraw.Draw(image)
-            label_size = draw.textsize(label, font)
-            label = label.encode('utf-8')
-            # print(label)
-            draw.text((cx, cy), str(label,'UTF-8'), fill=(0, 0, 0), font=font)
+            if cx > np.shape(image)[1] or cx < 0 or cy > np.shape(image)[0] or cy < 0:
+                continue
 
-            # 3D box
-            # 宽度方向
-            # 0-1  2-3  4-5  6-7
-            draw.line([vertex[0], vertex[1], vertex[2], vertex[3]], fill=128, width=2)
-            draw.line([vertex[4], vertex[5], vertex[6], vertex[7]], fill=128, width=2)
-            draw.line([vertex[8], vertex[9], vertex[10], vertex[11]], fill=128, width=2)
-            draw.line([vertex[12], vertex[13], vertex[14], vertex[15]], fill=128, width=2)
+            for j in range(len(top_label_indices)):
+                predicted_class_d = self.class_names[int(top_label_indices[j])]
+                score_d = top_conf[j]
+                cx_d, cy_d = top_norm_center[j].astype(np.int32)
+                vertex_d = top_norm_vertex[j].astype(np.int32)
+                l_d, w_d, h_d = top_box_size[j]
 
-            # 长度方向
-            # 0-3 1-2 4-7 5-6
-            draw.line([vertex[0], vertex[1], vertex[6], vertex[7]], fill=128, width=2)
-            draw.line([vertex[2], vertex[3], vertex[4], vertex[5]], fill=128, width=2)
-            draw.line([vertex[8], vertex[9], vertex[14], vertex[15]], fill=128, width=2)
-            draw.line([vertex[10], vertex[11], vertex[12], vertex[13]], fill=128, width=2)
+                if (vertex[14]+vertex_d[2])/2 - 10 <= cx_d <= (vertex[14]+vertex_d[2])/2 + 10 and (vertex[13]+vertex[1])/2 -10 <= cy_d <= (vertex[13]+vertex[1])/2 +10:
 
-            # 高度方向
-            # 0-4 1-5 2-6 3-7
-            draw.line([vertex[0], vertex[1], vertex[8], vertex[9]], fill=128, width=2)
-            draw.line([vertex[2], vertex[3], vertex[10], vertex[11]], fill=128, width=2)
-            draw.line([vertex[4], vertex[5], vertex[12], vertex[13]], fill=128, width=2)
-            draw.line([vertex[6], vertex[7], vertex[14], vertex[15]], fill=128, width=2)
-            del draw
+
+                    # 类别, 置信度
+                    label = '{} {:.2f}'.format(predicted_class, score)
+                    size = 'l:{:.2f}, w:{:.2f}, h:{:.2f}'.format(l, w, h)
+                    size = size.encode('utf-8')
+                    draw = ImageDraw.Draw(image)
+                    label_size = draw.textsize(label, font)
+                    label = label.encode('utf-8')
+                    # print(label)
+                    draw.text((cx_d, cy_d), str(label,'UTF-8'), fill=(0, 0, 0), font=font)
+
+                    # 长宽高
+                    draw.text((cx_d-60, cy_d-60), str(size,'UTF-8'), fill=(0, 0, 0), font=font)
+
+                    draw.ellipse((cx_d -3 , cy_d - 3, cx_d + 3, cy_d + 3), outline=(0,0,255), width=2)
+
+                    # 3D box
+                    # 宽度方向
+                    # 0-1  2-3  4-5  6-7
+                    # if (vertex[14] <= cx < = vertex[2]) and (vertex[13] <= cy <= vertex[1]):
+                    draw.line([vertex[0], vertex[1], vertex[2], vertex[3]], fill=128, width=2)
+                    draw.line([vertex[4], vertex[5], vertex[6], vertex[7]], fill=128, width=2)
+                    draw.line([vertex[8], vertex[9], vertex[10], vertex[11]], fill=128, width=2)
+                    draw.line([vertex[12], vertex[13], vertex[14], vertex[15]], fill=128, width=2)
+
+                    # 长度方向
+                    # 0-3 1-2 4-7 5-6
+                    draw.line([vertex[0], vertex[1], vertex[6], vertex[7]], fill=128, width=2)
+                    draw.line([vertex[2], vertex[3], vertex[4], vertex[5]], fill=128, width=2)
+                    draw.line([vertex[8], vertex[9], vertex[14], vertex[15]], fill=128, width=2)
+                    draw.line([vertex[10], vertex[11], vertex[12], vertex[13]], fill=128, width=2)
+
+                    # 高度方向
+                    # 0-4 1-5 2-6 3-7
+                    draw.line([vertex[0], vertex[1], vertex[8], vertex[9]], fill=128, width=2)
+                    draw.line([vertex[2], vertex[3], vertex[10], vertex[11]], fill=128, width=2)
+                    draw.line([vertex[4], vertex[5], vertex[12], vertex[13]], fill=128, width=2)
+                    draw.line([vertex[6], vertex[7], vertex[14], vertex[15]], fill=128, width=2)
+                    del draw
         return image
+
+        # for i, c in enumerate(top_label_indices):
+        #     predicted_class = self.class_names[int(c)]
+        #     score = top_conf[i]
+
+        #     cx, cy = top_norm_center[i].astype(np.int32)
+        #     vertex = top_norm_vertex[i].astype(np.int32)
+        #     l, w, h = top_box_size[i]
+
+        #     if cx > np.shape(image)[1] or cx < 0 or cy > np.shape(image)[0] or cy < 0:
+        #         continue
+
+        #     for j, d in enumerate(top_label_indices):
+        #         predicted_class = self.class_names[int(c)]
+        #         score = top_conf[i]
+
+        #         cx, cy = top_norm_center[i].astype(np.int32)
+        #         vertex = top_norm_vertex[i].astype(np.int32)
+        #         l, w, h = top_box_size[i]
+
+        #                     # if (vertex[14] <= cx <= vertex[2]) and (vertex[13] <= cy <= vertex[1]):
+        #     #     continue
+
+        #     # 类别, 置信度
+        #     label = '{} {:.2f}'.format(predicted_class, score)
+        #     draw = ImageDraw.Draw(image)
+        #     label_size = draw.textsize(label, font)
+        #     label = label.encode('utf-8')
+        #     # print(label)
+        #     draw.text((cx, cy), str(label,'UTF-8'), fill=(0, 0, 0), font=font)
+
+        #     # 3D box
+        #     # 宽度方向
+        #     # 0-1  2-3  4-5  6-7
+        #     # if (vertex[14] <= cx < = vertex[2]) and (vertex[13] <= cy <= vertex[1]):
+        #     draw.line([vertex[0], vertex[1], vertex[2], vertex[3]], fill=128, width=2)
+        #     draw.line([vertex[4], vertex[5], vertex[6], vertex[7]], fill=128, width=2)
+        #     draw.line([vertex[8], vertex[9], vertex[10], vertex[11]], fill=128, width=2)
+        #     draw.line([vertex[12], vertex[13], vertex[14], vertex[15]], fill=128, width=2)
+
+        #     # 长度方向
+        #     # 0-3 1-2 4-7 5-6
+        #     draw.line([vertex[0], vertex[1], vertex[6], vertex[7]], fill=128, width=2)
+        #     draw.line([vertex[2], vertex[3], vertex[4], vertex[5]], fill=128, width=2)
+        #     draw.line([vertex[8], vertex[9], vertex[14], vertex[15]], fill=128, width=2)
+        #     draw.line([vertex[10], vertex[11], vertex[12], vertex[13]], fill=128, width=2)
+
+        #     # 高度方向
+        #     # 0-4 1-5 2-6 3-7
+        #     draw.line([vertex[0], vertex[1], vertex[8], vertex[9]], fill=128, width=2)
+        #     draw.line([vertex[2], vertex[3], vertex[10], vertex[11]], fill=128, width=2)
+        #     draw.line([vertex[4], vertex[5], vertex[12], vertex[13]], fill=128, width=2)
+        #     draw.line([vertex[6], vertex[7], vertex[14], vertex[15]], fill=128, width=2)
+        #     del draw
+        # return image
