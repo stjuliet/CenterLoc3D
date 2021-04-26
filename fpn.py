@@ -3,7 +3,7 @@ import math
 import torch
 import torch.nn as nn
 from torchsummary import summary
-from backbone import resnet18, resnet34, resnet50, resnet101, resnet152
+from resnets import resnet18, resnet34, resnet50, resnet101, resnet152
 
 
 class Resnet(nn.Module):
@@ -16,7 +16,8 @@ class Resnet(nn.Module):
         self.model_edition = [resnet18, resnet34, resnet50, resnet101, resnet152]
         model = self.model_edition[model_index](load_weights)
         # remove avgpool, fc layers for future structure
-        del model.avgpool, model.fc
+        del model.avgpool
+        del model.fc
         self.model = model
 
     def forward(self, x):

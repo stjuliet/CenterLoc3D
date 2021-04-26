@@ -1,8 +1,10 @@
 .vscode
 /__pycache__/
-/DATAdevkit/
+*.jpg
+*.xml
+*.txt
 /img/
+/input/
+/results/
 /logs/
 /model_data/
-/test_results/
-/train/

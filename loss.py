@@ -44,10 +44,22 @@ def reg_l1_loss(pred, target, mask, index):
     return loss
 
 
-def reproject_l1_loss(pred_vertex, target_hm, calib_matrix, pred_box_size, mask, base_point, index, perspective, fp_size, input_size, raw_img_hs, raw_img_ws):
+def reproject_l1_loss(pred_vertex, calib_matrix, pred_box_size, mask, base_point, index, perspective, fp_size, input_size, raw_img_hs, raw_img_ws):
     # 反投影损失
+    # pred_vertex: 预测车辆三维框顶点坐标，相对于128*128特征图
+    # calib_matrix: 相机标定矩阵
+    # pred_box_size: 预测车辆物理尺寸
+    # mask: 是否有车辆目标
+    # base_point: 车辆基准点坐标，相对于原始宽高图像
+    # index: 三维框顶点坐标数量
+    # perspective: 车辆视角
+    # fp_size: 输出特征图尺寸 128*128
+    # input_size: resize后图像尺寸 512*512
+    # raw_img_hs: 原始图像高度
+    # raw_img_ws: 原始图像宽度
+    
     featmap_h, featmap_w = fp_size  # feature_map尺寸 128, 128
-    input_h, input_w = input_size[0], input_size[1]
+    input_h, input_w = input_size[0], input_size[1]  # 512,512
     
     # pred是计算到特征图上的尺寸, 恢复到原始图像
     pred_vertex = pred_vertex.permute(0,2,3,1)

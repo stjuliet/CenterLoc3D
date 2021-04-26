@@ -1,5 +1,6 @@
 # predict and decode results
 import os
+import time
 import cv2 as cv
 import numpy as np
 import colorsys
@@ -94,7 +95,7 @@ class Bbox3dPred(object):
                 self.colors))
 
     # 检测图片
-    def detect_image(self, image):
+    def detect_image(self, image, image_id, is_record_result):
         image_shape = np.array(np.shape(image)[0:2])
 
         # 给图像增加灰条，实现不失真的resize
@@ -121,6 +122,8 @@ class Bbox3dPred(object):
             # [bt, 2, 128, 128]
             # [bt, 16, 128, 128]
             # [bt, 3, 128, 128]
+
+            t1 = time.time()
             output_hm, output_center, output_vertex, output_size = self.model(images)
 
             # 保存热力图
@@ -159,9 +162,7 @@ class Bbox3dPred(object):
                         empty_box.append([outputs[i][16], outputs[i][17], outputs[i][4], outputs[i][5], outputs[i][22]])
                     np_det_results = np.array(empty_box, dtype=np.float32)
                     outputs = np.array(nms(np_det_results, self.nms_threhold))
-                    # pass
-                # 后续添加3d box iou 计算公式
-                # outputs = np.array(nms(outputs, self.nms_threhold))
+                    # 后续添加3d box iou 计算公式
             except:
                 pass
             
@@ -186,13 +187,26 @@ class Bbox3dPred(object):
             top_norm_vertex[:, 0:16:2] = top_norm_vertex[:, 0:16:2] * max(image_shape[0], image_shape[1])
             top_norm_vertex[:, 1:16:2] = top_norm_vertex[:, 1:16:2] * max(image_shape[0], image_shape[1]) - abs(image_shape[0]-image_shape[1])//2.
 
+            t2 = time.time()
+
+            process_time = t2 - t1
 
         font = ImageFont.truetype(font='model_data/simhei.ttf',size=np.floor(3e-2 * np.shape(image)[1] + 0.5).astype('int32')//2)
 
         thickness = max((np.shape(image)[0] + np.shape(image)[1]) // self.image_size[0], 1)
 
+        # 如果开启记录结果选项
+        if is_record_result:
+            # 首先判断是否存在以下文件夹，不存在则创建
+            if not os.path.exists("./input"):
+                os.makedirs("./input")
+            if not os.path.exists("./input/detection-results"):
+                os.makedirs("./input/detection-results")
+            if not os.path.exists("./input/images-optional"):
+                os.makedirs("./input/images-optional")
+            # 打开记录txt文件
+            f = open("./input/detection-results/"+image_id+".txt","w")
 
-        keep = []
         for i in range(len(top_label_indices)):
             predicted_class = self.class_names[int(top_label_indices[i])]
             score = top_conf[i]
@@ -211,7 +225,6 @@ class Bbox3dPred(object):
                 l_d, w_d, h_d = top_box_size[j]
 
                 if (vertex[14]+vertex_d[2])/2 - 10 <= cx_d <= (vertex[14]+vertex_d[2])/2 + 10 and (vertex[13]+vertex[1])/2 -10 <= cy_d <= (vertex[13]+vertex[1])/2 +10:
-
 
                     # 类别, 置信度
                     label = '{} {:.2f}'.format(predicted_class, score)
@@ -250,8 +263,17 @@ class Bbox3dPred(object):
                     draw.line([vertex[2], vertex[3], vertex[10], vertex[11]], fill=128, width=2)
                     draw.line([vertex[4], vertex[5], vertex[12], vertex[13]], fill=128, width=2)
                     draw.line([vertex[6], vertex[7], vertex[14], vertex[15]], fill=128, width=2)
+
+                    # 保存record
+                    if is_record_result:
+                        if vertex[14] < vertex[2]:  # right perspective(7,1)
+                            left, top, right, bottom = vertex[14], vertex[15], vertex[2], vertex[3]
+                            f.write("%s %s %s %s %s %s\n" % (predicted_class, str(score)[:6], str(int(left)), str(int(top)), str(int(right)),str(int(bottom))))
+                        else:  # left perspective  (1x,6y,7x,0y)
+                            left, top, right, bottom = vertex[2], vertex[13], vertex[14], vertex[1]
+                            f.write("%s %s %s %s %s %s\n" % (predicted_class, str(score)[:6], str(int(left)), str(int(top)), str(int(right)),str(int(bottom))))
                     del draw
-        return image
+        return image, process_time
 
         # for i, c in enumerate(top_label_indices):
         #     predicted_class = self.class_names[int(c)]

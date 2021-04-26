@@ -9,8 +9,6 @@ from matplotlib.colors import hsv_to_rgb, rgb_to_hsv
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 
