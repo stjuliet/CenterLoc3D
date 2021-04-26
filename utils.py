@@ -87,6 +87,47 @@ def iou(b1, b2):
     return iou
 
 
+def basic_3diou(b1, b2):
+    """
+    两个box在特定perspective下的3d iou计算
+    left: x3_1 > x1_2
+    right: x3_1 < x1_2
+    b1, b2: [x0, y0, z0, x1, y1, z1, ... , x7, y7, z7]
+    0: 0, 1, 2,
+    1: 3, 4, 5,
+    2: 6, 7, 8,
+    3: 9, 10, 11,
+    4: 12, 13, 14,
+    5: 15, 16, 17,
+    6: 18, 19, 20,
+    7: 21, 22, 23,
+    """
+    if b1[9] < b2[3]:  # right
+        min_x = np.maximum(b1[0], b2[0])
+        max_x = np.minimum(b1[3], b2[3])
+    else:  # left
+        min_x = np.maximum(b1[3], b2[3])
+        max_x = np.minimum(b1[0], b2[0])
+
+    min_y = np.maximum(b1[1], b2[1])
+    max_y = np.minimum(b1[10], b2[10])
+
+    min_z = np.maximum(b1[2], b2[2])
+    max_z = np.minimum(b1[14], b2[14])
+
+    x_overlap = max_x - min_x
+    y_overlap = max_y - min_y
+    z_overlap = max_z - min_z
+
+    overlap_volumn = x_overlap*y_overlap*z_overlap
+    b1_volumn = abs(b1[3]-b1[0])*(b1[10]-b1[1])*(b1[14]-b1[2])
+    b2_volumn = abs(b2[3]-b2[0])*(b2[10]-b2[1])*(b2[14]-b2[2])
+
+    union_volumn = b1_volumn + b2_volumn - overlap_volumn
+    iou = overlap_volumn / union_volumn
+    return iou
+
+
 def calib_param_to_matrix(focal, fi, theta, h, pcx, pcy):
     """
     将标定参数转换为变换矩阵(世界坐标y轴沿道路方向)
