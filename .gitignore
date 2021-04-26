@@ -4,15 +4,6 @@
 *.xml
 *.txt
 
-/DATAdevkit/DATA2021/Annotations
-!/DATAdevkit/DATA2021/Annotations
-
-/DATAdevkit/DATA2021/ImageSets/Main
-!/DATAdevkit/DATA2021/ImageSets/Main
-
-/DATAdevkit/DATA2021/JPEGImages
-!/DATAdevkit/DATA2021/JPEGImages
-
 /img/
 /input/
 /results/
