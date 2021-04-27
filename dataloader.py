@@ -15,18 +15,9 @@ from torch.utils.data.dataset import Dataset
 from utils import draw_gaussian, gaussian_radius, read_calib_params
 
 
-def preprocess_image(image):
-    mean = [0.40789655, 0.44719303, 0.47026116]
-    std = [0.2886383, 0.27408165, 0.27809834]
-    return ((np.float32(image) / 255.) - mean) / std
-
-def rand(a=0, b=1):
-    return np.random.rand()*(b-a) + a
-
 class Bbox3dDatasets(Dataset):
     def __init__(self, train_lines, input_size, num_classes, is_train):
         super(Bbox3dDatasets, self).__init__()
-
         self.train_lines = train_lines
         self.input_size = input_size  # 512, 512
         self.output_size = (int(input_size[0]/4) , int(input_size[1]/4))  # 128, 128
@@ -39,6 +30,11 @@ class Bbox3dDatasets(Dataset):
     def rand(self, a=0, b=1):
         return np.random.rand() * (b - a) + a
     
+    def preprocess_image(self, image):
+        mean = [0.40789655, 0.44719303, 0.47026116]
+        std = [0.2886383, 0.27408165, 0.27809834]
+        return ((np.float32(image) / 255.) - mean) / std
+    
     def letterbox_image(self, image, image_h, image_w, input_shape):
         featmap_w, featmap_h = input_shape
         scale = min(featmap_w/image_w, featmap_h/image_h)
@@ -50,7 +46,7 @@ class Bbox3dDatasets(Dataset):
         return new_image
 
     def get_random_data(self, annotation_line, input_shape, jitter=.3, hue=.1, sat=1.5, val=1.5, augment=True):
-        '''r实时数据增强的随机预处理'''
+        '''实时数据增强的随机预处理'''
         line = annotation_line.split()
         # line[0]:image, line[1]:calib_file_path, line[2:]:box_info
         image = Image.open(line[0])  # 原始图像
@@ -84,17 +80,13 @@ class Bbox3dDatasets(Dataset):
         box_perspective = box_info[:, size_len:pers_len].astype(np.float32)
         box_base_point = box_info[:, pers_len:bsp_len].astype(np.float32)
 
-        # correct boxes (box2d, box_center, box_vertex, box_base_point)
+        # correct boxes (box2d, box_center, box_vertex)
         correct_box2d = np.zeros((len(box_info), 4))
         correct_box_center = np.zeros((len(box_info), 2))
         correct_box_vertex = np.zeros((len(box_info), 16))
-        # correct_box_base_point = np.zeros((len(box_info), 2))
-        # raw_box_base_point = np.zeros((len(box_info), 2))
-
-        # raw_box_base_point[:len(box_info)] = box_base_point
 
         # resize image (加灰条)
-        image = self.letterbox_image(image, image_h, image_w, input_shape)
+        image = self.letterbox_image(image, image_h, image_w, input_shape)  # RGB, HWC
 
         if augment: # 如果进行数据增强(色域变换/随机水平翻转)
             # 随机水平翻转
@@ -118,9 +110,6 @@ class Bbox3dDatasets(Dataset):
                     box_vertex[:, 1:16:2] = box_vertex[:, 1:16:2] * new_image_h/image_h + dy  # y
                     correct_box_vertex[:len(box_info)] = box_vertex
 
-                    # box_base_point[:, 0] = featmap_w - (box_base_point[:, 0] * new_image_w/image_w + dx)
-                    # box_base_point[:, 1] = box_base_point[:, 1] * new_image_h/image_h + dy
-                    # correct_box_base_point[:len(box_info)] = box_base_point
             else:
                 if len(box_info) > 0:
                     box2d[:, 0] = box2d[:, 0] * new_image_w/image_w + dx
@@ -137,25 +126,22 @@ class Bbox3dDatasets(Dataset):
                     box_vertex[:, 1:16:2] = box_vertex[:, 1:16:2] * new_image_h/image_h + dy  # y
                     correct_box_vertex[:len(box_info)] = box_vertex
 
-                    # box_base_point[:, 0] = box_base_point[:, 0] * new_image_w/image_w + dx
-                    # box_base_point[:, 1] = box_base_point[:, 1] * new_image_h/image_h + dy
-                    # correct_box_base_point[:len(box_info)] = box_base_point
-
-            # 色域变换
-            hue = rand(-hue, hue)
-            sat = rand(1, sat) if rand()<.5 else 1/rand(1, sat)
-            val = rand(1, val) if rand()<.5 else 1/rand(1, val)
-            x = cv.cvtColor(np.array(image,np.float32)/255, cv.COLOR_RGB2HSV)
-            x[..., 0] += hue*360
-            x[..., 0][x[..., 0]>1] -= 1
-            x[..., 0][x[..., 0]<0] += 1
-            x[..., 1] *= sat
-            x[..., 2] *= val
-            x[x[:,:, 0]>360, 0] = 360
-            x[:, :, 1:][x[:, :, 1:]>1] = 1
-            x[x<0] = 0
-            image = cv.cvtColor(x, cv.COLOR_HSV2RGB)*255
-
+            # 随机色域变换
+            color_change = self.rand()<.5
+            if color_change:
+                hue = self.rand(-hue, hue)
+                sat = self.rand(1, sat) if self.rand()<.5 else 1/self.rand(1, sat)
+                val = self.rand(1, val) if self.rand()<.5 else 1/self.rand(1, val)
+                x = cv.cvtColor(np.array(image,np.float32)/255, cv.COLOR_RGB2HSV)
+                x[..., 0] += hue*360
+                x[..., 0][x[..., 0]>1] -= 1
+                x[..., 0][x[..., 0]<0] += 1
+                x[..., 1] *= sat
+                x[..., 2] *= val
+                x[x[:,:, 0]>360, 0] = 360
+                x[:, :, 1:][x[:, :, 1:]>1] = 1
+                x[x<0] = 0
+                image = cv.cvtColor(x, cv.COLOR_HSV2RGB)*255
             return image, calib_matrix, correct_box2d, box_cls, correct_box_center, correct_box_vertex, box_size, box_perspective, box_base_point, image_w, image_h
         else:
             if len(box_info) > 0:
@@ -172,10 +158,6 @@ class Bbox3dDatasets(Dataset):
                 box_vertex[:, 0:16:2] = box_vertex[:, 0:16:2] * new_image_w/image_w + dx  # x
                 box_vertex[:, 1:16:2] = box_vertex[:, 1:16:2] * new_image_h/image_h + dy  # y
                 correct_box_vertex[:len(box_info)] = box_vertex
-
-                # box_base_point[:, 0] = box_base_point[:, 0] * new_image_w/image_w + dx
-                # box_base_point[:, 1] = box_base_point[:, 1] * new_image_h/image_h + dy
-                # correct_box_base_point[:len(box_info)] = box_base_point
             
             return image, calib_matrix, correct_box2d, box_cls, correct_box_center, correct_box_vertex, box_size, box_perspective, box_base_point, image_w, image_h
 
@@ -242,7 +224,7 @@ class Bbox3dDatasets(Dataset):
                 batch_center_mask[ct_int[1], ct_int[0]] = 1
 
         img = np.array(image_data, dtype=np.float32)[:,:,::-1]  # RGB -> BGR
-        img = np.transpose(preprocess_image(img), (2, 0, 1))  # BGR -> RGB
+        img = np.transpose(self.preprocess_image(img), (2, 0, 1))  # 归一化，HWC->CHW
 
         return img, calib_matrix, batch_hm, batch_center_reg, batch_vertex_reg, batch_size_reg, batch_center_mask, batch_box_perspective, batch_base_point, raw_img_w, raw_img_h
 

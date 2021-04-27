@@ -232,107 +232,111 @@ if __name__ == "__main__":
     #   Epoch总训练世代
     #   提示OOM或者显存不足请调小Batch_size
 
-    # if True:
-    #     # 超参数设置
-    #     lr = 3.125e-5
-    #     Batch_size = 32
-    #     Init_Epoch = 50
-    #     Freeze_Epoch = 60
+    if True:
+        # 超参数设置
+        lr = 3.125e-5
+        Batch_size = 4
+        Init_Epoch = 50
+        Freeze_Epoch = 60
         
-    #     optimizer = optim.Adam(net.parameters(),lr,weight_decay=5e-4)
-    #     lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=3, verbose=True)
+        optimizer = optim.Adam(net.parameters(),lr,weight_decay=5e-4)
+        lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=3, verbose=True)
 
-    #     train_dataset = Bbox3dDatasets(lines[:num_train], input_shape, num_classes, True)
-    #     val_dataset = Bbox3dDatasets(lines[num_train:], input_shape, num_classes, False)
-    #     gen = DataLoader(train_dataset, batch_size=Batch_size, num_workers=8, pin_memory=True,
-    #                             drop_last=True, collate_fn=bbox3d_dataset_collate)
-    #     gen_val = DataLoader(val_dataset, batch_size=Batch_size, num_workers=8,pin_memory=True,
-    #                             drop_last=True, collate_fn=bbox3d_dataset_collate)
+        train_dataset = Bbox3dDatasets(lines[:num_train], input_shape, num_classes, True)
+        val_dataset = Bbox3dDatasets(lines[num_train:], input_shape, num_classes, False)
+        gen = DataLoader(train_dataset, batch_size=Batch_size, num_workers=8, pin_memory=True,
+                                drop_last=True, collate_fn=bbox3d_dataset_collate)
+        gen_val = DataLoader(val_dataset, batch_size=Batch_size, num_workers=8,pin_memory=True,
+                                drop_last=True, collate_fn=bbox3d_dataset_collate)
 
-    #     epoch_size = num_train//Batch_size
-    #     epoch_size_val = num_val//Batch_size
+        epoch_size = num_train//Batch_size
+        epoch_size_val = num_val//Batch_size
 
-    #     # 冻结一定部分训练
-    #     model.freeze_backbone()
+        # 冻结一定部分训练
+        model.freeze_backbone()
 
-    #     # # 开始训练前展示训练样本
-    #     # for step, data in enumerate(gen, start = 0):
-    #     #     # batch_center_reg: 中心点偏移量
-    #     #     img, calib_matrix, batch_hm, batch_center_reg, batch_vertex_reg, batch_size_reg, batch_center_mask, batch_box_perspective, batch_base_point, raw_img_w, raw_img_h = data
+        # 开始训练前展示训练样本
+        for step, data in enumerate(gen, start = 0):
+            # batch_center_reg: 中心点偏移量
+            img, calib_matrix, batch_hm, batch_center_reg, batch_vertex_reg, batch_size_reg, batch_center_mask, batch_box_perspective, batch_base_point, raw_img_w, raw_img_h = data
             
-    #     #     for num in range(len(img)):
-    #     #         plt.figure()
-    #     #         raw_img = img[num] # numpy格式
-    #     #         raw_img = raw_img.transpose(1, 2, 0)
-    #     #         raw_img = np.array((raw_img * std + mean) * 255).astype(np.uint8)
-    #     #         max_size=max(raw_img_w[num],raw_img_h[num])
-    #     #         minus_size=abs(raw_img_w[num]-raw_img_h[num])
+            for num in range(len(img)):
+                plt.figure()
+                raw_img = img[num] # numpy格式, BGR, CHW
+                raw_img = raw_img.transpose(1, 2, 0)  # CHW->HWC
+                raw_img = np.array((raw_img * std + mean) * 255.).astype(np.uint8)
+                raw_img = cv.cvtColor(raw_img, cv.COLOR_BGR2RGB)  # RGB
 
-    #     #         pil_raw_img=Image.fromarray(raw_img).resize((max_size,max_size)) # 返回PIL格式带灰条原图
-    #     #         draw=ImageDraw.Draw(pil_raw_img)
+                max_size=max(raw_img_w[num],raw_img_h[num])
+                minus_size=abs(raw_img_w[num]-raw_img_h[num])
 
-    #     #         # 绘制中心点
-    #     #         t_list = np.where(batch_center_mask[num] == 1.0)  # 遍历图像域中所有目标点
-    #     #         for y, x in zip(t_list[0], t_list[1]):
-    #     #             # 显示到带灰条原图上
-    #     #             center = ([x, y] + batch_center_reg[num, y, x]) * max_size // 128
-    #     #             vertex = batch_vertex_reg[num, y, x] * max_size // 128
+                pil_raw_img=Image.fromarray(raw_img).resize((max_size,max_size)) # 返回PIL格式带灰条原图
+                draw=ImageDraw.Draw(pil_raw_img)
 
-    #     #             draw.ellipse([center[0], center[1], center[0]+5, center[1]+5], outline=(0, 0, 255), width = 1)
-    #     #             cls_id = np.argmax(batch_hm[num, y, x])
-    #     #             cls_name = class_names[cls_id]
-    #     #             draw.text([center[0], center[1]-10], cls_name, fill=(255, 0, 0))
+                # 绘制中心点
+                t_list = np.where(batch_center_mask[num] == 1.0)  # 遍历图像域中所有目标点
+                for y, x in zip(t_list[0], t_list[1]):
+                    # 显示到带灰条原图上
+                    center = ([x, y] + batch_center_reg[num, y, x]) * max_size // output_shape[0]
+                    vertex = batch_vertex_reg[num, y, x] * max_size // output_shape[0]
 
-    #     #             # 宽度方向
-    #     #             # 0-1  2-3  4-5  6-7
-    #     #             draw.line([vertex[0], vertex[1], vertex[2], vertex[3]], fill=128, width=2)
-    #     #             draw.line([vertex[4], vertex[5], vertex[6], vertex[7]], fill=128, width=2)
-    #     #             draw.line([vertex[8], vertex[9], vertex[10], vertex[11]], fill=128, width=2)
-    #     #             draw.line([vertex[12], vertex[13], vertex[14], vertex[15]], fill=128, width=2)
+                    draw.ellipse([center[0], center[1], center[0]+5, center[1]+5], outline=(0, 0, 255), width = 1)
+                    cls_id = np.argmax(batch_hm[num, y, x])
+                    cls_name = class_names[cls_id]
+                    draw.text([center[0], center[1]-10], cls_name, fill=(255, 0, 0))
 
-    #     #             # 长度方向
-    #     #             # 0-3 1-2 4-7 5-6
-    #     #             draw.line([vertex[0], vertex[1], vertex[6], vertex[7]], fill=128, width=2)
-    #     #             draw.line([vertex[2], vertex[3], vertex[4], vertex[5]], fill=128, width=2)
-    #     #             draw.line([vertex[8], vertex[9], vertex[14], vertex[15]], fill=128, width=2)
-    #     #             draw.line([vertex[10], vertex[11], vertex[12], vertex[13]], fill=128, width=2)
+                    # 宽度方向
+                    # 0-1  2-3  4-5  6-7
+                    draw.line([vertex[0], vertex[1], vertex[2], vertex[3]], fill=128, width=2)
+                    draw.line([vertex[4], vertex[5], vertex[6], vertex[7]], fill=128, width=2)
+                    draw.line([vertex[8], vertex[9], vertex[10], vertex[11]], fill=128, width=2)
+                    draw.line([vertex[12], vertex[13], vertex[14], vertex[15]], fill=128, width=2)
 
-    #     #             # 高度方向
-    #     #             # 0-4 1-5 2-6 3-7
-    #     #             draw.line([vertex[0], vertex[1], vertex[8], vertex[9]], fill=128, width=2)
-    #     #             draw.line([vertex[2], vertex[3], vertex[10], vertex[11]], fill=128, width=2)
-    #     #             draw.line([vertex[4], vertex[5], vertex[12], vertex[13]], fill=128, width=2)
-    #     #             draw.line([vertex[6], vertex[7], vertex[14], vertex[15]], fill=128, width=2)
-    #     #         # del draw
+                    # 长度方向
+                    # 0-3 1-2 4-7 5-6
+                    draw.line([vertex[0], vertex[1], vertex[6], vertex[7]], fill=128, width=2)
+                    draw.line([vertex[2], vertex[3], vertex[4], vertex[5]], fill=128, width=2)
+                    draw.line([vertex[8], vertex[9], vertex[14], vertex[15]], fill=128, width=2)
+                    draw.line([vertex[10], vertex[11], vertex[12], vertex[13]], fill=128, width=2)
 
-    #     #         plt.subplot(1,2,1)
-    #     #         plt.imshow(pil_raw_img)
+                    # 高度方向
+                    # 0-4 1-5 2-6 3-7
+                    draw.line([vertex[0], vertex[1], vertex[8], vertex[9]], fill=128, width=2)
+                    draw.line([vertex[2], vertex[3], vertex[10], vertex[11]], fill=128, width=2)
+                    draw.line([vertex[4], vertex[5], vertex[12], vertex[13]], fill=128, width=2)
+                    draw.line([vertex[6], vertex[7], vertex[14], vertex[15]], fill=128, width=2)
+                # del draw
 
-    #     #         # 绘制热力图
-    #     #         plt.subplot(1,2,2)
-    #     #         hotmaps = batch_hm[num][...,0]
-    #     #         print(hotmaps.shape)
-    #     #         heatmap = np.maximum(hotmaps, 0)
-    #     #         heatmap /= np.max(heatmap)
-    #     #         plt.imshow(heatmap)
+                plt.subplot(2,2,1)
+                plt.imshow(pil_raw_img)  # RGB
 
-    #     #         # 将灰度图转换为伪彩色图
-    #     #         heatmap = cv.resize(heatmap, (512, 512))
-    #     #         heatmap = np.uint8(255 * heatmap)
-    #     #         heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
-    #     #         superimposed_img = heatmap * 0.4 + raw_img
-    #     #         # cv.imwrite('img/hotmap.jpg', superimposed_img)
+                # 绘制热力图
+                plt.subplot(2,2,2)
+                hotmaps = batch_hm[num][...,0]
+                print(hotmaps.shape)
+                heatmap = np.maximum(hotmaps, 0)
+                heatmap /= np.max(heatmap)
+                plt.imshow(heatmap)
 
-    #     #         # plt.show()
+                # 将灰度图转换为伪彩色图
+                plt.subplot(2,2,3)
+                heatmap = cv.resize(heatmap, (512, 512))
+                heatmap = np.uint8(255 * heatmap)
+                heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
+                raw_img = cv.cvtColor(raw_img, cv.COLOR_RGB2BGR)
+                superimposed_img = heatmap * 0.4 + raw_img * 0.8  # BGR
 
-    #     #         # 转换为
-    #     #         # plt.savefig("./hotmap.png")
-    #     #     plt.show()
+                cv.imwrite("img/hot.jpg", superimposed_img)
+                superimposed_img = np.array(superimposed_img, dtype=np.uint8)
+                superimposed_img = cv.cvtColor(superimposed_img, cv.COLOR_BGR2RGB)
+                plt.imshow(superimposed_img)
+
+            plt.show()
 
 
-    #     for epoch in range(Init_Epoch,Freeze_Epoch):
-    #         val_loss = fit_one_epoch(net,epoch,epoch_size,epoch_size_val,gen,gen_val,Freeze_Epoch,Cuda, writer)
-    #         lr_scheduler.step(val_loss)
+        for epoch in range(Init_Epoch,Freeze_Epoch):
+            val_loss = fit_one_epoch(net,epoch,epoch_size,epoch_size_val,gen,gen_val,Freeze_Epoch,Cuda, writer)
+            lr_scheduler.step(val_loss)
 
     if True:
         # 超参数设置

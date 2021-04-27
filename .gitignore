@@ -1,5 +1,7 @@
 .vscode
 /__pycache__/
+
+# ignore all .jpg .xml. txt files
 *.jpg
 *.xml
 *.txt
@@ -12,3 +14,4 @@
 /img/
 /logs/
 /model_data/
+/train-logs/

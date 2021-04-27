@@ -104,8 +104,9 @@ class Bbox3dPred(object):
             crop_img = np.array(letterbox_image(image, (self.image_size[1], self.image_size[0])))
             crop_img = np.array(crop_img, dtype = np.float32)[:,:,::-1]
         else:
-            crop_img = image.convert('RGB')
-            crop_img = crop_img.resize((self.model_image_size[1], self.model_image_size[0]), Image.BICUBIC)
+            crop_img = np.array(image, dtype = np.float32)[:,:,::-1]
+            crop_img = cv.cvtColor(crop_img, cv.COLOR_RGB2BGR)
+            crop_img = cv.resize(crop_img, (self.image_size[1], self.image_size[0]), cv.INTER_CUBIC)
 
         photo = np.array(crop_img, dtype = np.float32)
         letter_img = np.array(crop_img, dtype = np.float32)
@@ -142,7 +143,7 @@ class Bbox3dPred(object):
             # heatmap = cv.resize(heatmap, (self.image_size[0], self.image_size[1]))
             # heatmap = np.uint8(255 * heatmap)
             # heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
-            # superimposed_img = heatmap * 0.4 + letter_img[:,:,::-1]
+            # superimposed_img = heatmap * 0.4 + letter_img * 0.8
 
             # cv.imwrite('img/hotmap.jpg', superimposed_img)
             # cv.waitKey()
@@ -167,6 +168,7 @@ class Bbox3dPred(object):
             if len(output) <= 0:
                 return image
             
+            # 归一化坐标[0, 1]
             norm_center, norm_vertex, box_size, det_conf, det_cls = output[:,:2], output[:,2:18], output[:,18:21], output[:,21], output[:,22]
             
             # 筛选出其中得分高于confidence的框
@@ -178,11 +180,14 @@ class Bbox3dPred(object):
             top_box_size = box_size[top_indices]
             
             # 将坐标还原至原图像
-            top_norm_center[:, 0] = top_norm_center[:, 0] * max(image_shape[0], image_shape[1])
-            top_norm_center[:, 1] = top_norm_center[:, 1] * max(image_shape[0], image_shape[1]) - abs(image_shape[0]-image_shape[1])//2.
-
-            top_norm_vertex[:, 0:16:2] = top_norm_vertex[:, 0:16:2] * max(image_shape[0], image_shape[1])
-            top_norm_vertex[:, 1:16:2] = top_norm_vertex[:, 1:16:2] * max(image_shape[0], image_shape[1]) - abs(image_shape[0]-image_shape[1])//2.
+            if self.letterbox_image:
+                top_norm_center = correct_vertex_norm2raw(top_norm_center, image_shape)
+                top_norm_vertex = correct_vertex_norm2raw(top_norm_vertex, image_shape)
+            else:
+                top_norm_center[:, 0] = top_norm_center[:, 0] * image_shape[1]
+                top_norm_center[:, 1] = top_norm_center[:, 1] * image_shape[0]
+                top_norm_vertex[:, 0:16:2] = top_norm_vertex[:, 0:16:2] * image_shape[1]
+                top_norm_vertex[:, 1:16:2] = top_norm_vertex[:, 1:16:2] * image_shape[0]
 
             t2 = time.time()
 

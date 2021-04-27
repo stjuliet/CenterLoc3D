@@ -69,6 +69,7 @@ def nms(results, nms_threshold):
 
 
 def iou(b1, b2):
+    """二维框iou"""
     b1_x1, b1_y1, b1_x2, b1_y2 = b1[0], b1[1], b1[2], b1[3]
     b2_x1, b2_y1, b2_x2, b2_y2 = b2[:, 0], b2[:, 1], b2[:, 2], b2[:, 3]
 
@@ -385,6 +386,18 @@ def decode_bbox(pred_hms, pred_center, pred_vertex, pred_size, image_size, thres
 
         detects.append(detect.cpu().numpy()[:topk])
     return detects
+
+
+def correct_vertex_norm2raw(norm_vertex, raw_image_shape):
+    raw_img_h, raw_img_w = raw_image_shape
+    if raw_img_h < raw_img_w:  # 扁图
+        norm_vertex[:, 0:norm_vertex.shape[1]:2] = norm_vertex[:, 0:norm_vertex.shape[1]:2] * max(raw_img_h, raw_img_w)
+        norm_vertex[:, 1:norm_vertex.shape[1]:2] = norm_vertex[:, 1:norm_vertex.shape[1]:2] * max(raw_img_h, raw_img_w) - abs(raw_img_h-raw_img_w)//2.
+    else:  # 竖图
+        norm_vertex[:, 0:norm_vertex.shape[1]:2] = norm_vertex[:, 0:norm_vertex.shape[1]:2] * max(raw_img_h, raw_img_w) - abs(raw_img_h-raw_img_w)//2.
+        norm_vertex[:, 1:norm_vertex.shape[1]:2] = norm_vertex[:, 1:norm_vertex.shape[1]:2] * max(raw_img_h, raw_img_w)
+    return norm_vertex
+
 
 # -----------------------------高斯核函数-----------------------------------------------------#
 def draw_gaussian(heatmap, center, radius, k=1):
