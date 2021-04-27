@@ -4,8 +4,11 @@
 *.xml
 *.txt
 
+/input-2D/
+/input-3D/
+/results-2D/
+/results-3D/
+
 /img/
-/input/
-/results/
 /logs/
 /model_data/

@@ -2,6 +2,20 @@
 
 单目交通场景车辆三维目标检测网络的Pytorch实现✌✌
 
+## 运行环境
+
+- Windows 10
+
+- Python 3.6.2
+
+- PyTorch 1.4.0
+
+- torchvision 0.4.2
+
+- CUDA 10.1
+
+- cuDNN 7.6.5
+
 
 ## 数据集及训练配置流程
 

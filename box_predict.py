@@ -12,7 +12,7 @@ from torch.autograd import Variable
 
 from fpn import KeyPointDetection
 from hourglass import HourglassNet, HgResBlock, Hourglass
-from utils import decode_bbox, letterbox_image, nms
+from utils import *
 
 
 def preprocess_image(image):
@@ -95,7 +95,7 @@ class Bbox3dPred(object):
                 self.colors))
 
     # 检测图片
-    def detect_image(self, image, image_id, is_record_result):
+    def detect_image(self, image, image_id, is_record_result, calib_path = None):
         image_shape = np.array(np.shape(image)[0:2])
 
         # 给图像增加灰条，实现不失真的resize
@@ -126,6 +126,7 @@ class Bbox3dPred(object):
             t1 = time.time()
             output_hm, output_center, output_vertex, output_size = self.model(images)
 
+            # ----------------------------------保存特定类别热力图-----------------------------------#
             # 保存热力图
             # 提取属于第0类的热力图
             # hotmaps = output_hm[0].cpu().numpy().transpose(1, 2, 0)[..., 0]
@@ -135,26 +136,22 @@ class Bbox3dPred(object):
 
             # heatmap = np.maximum(hotmaps, 0)
             # heatmap /= np.max(heatmap)
-            # plt.matshow(heatmap)
-            # plt.show()
+            # # plt.matshow(heatmap)
+            # # plt.show()
 
             # heatmap = cv.resize(heatmap, (self.image_size[0], self.image_size[1]))
             # heatmap = np.uint8(255 * heatmap)
             # heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
-            # superimposed_img = heatmap * 0.4 + letter_img
+            # superimposed_img = heatmap * 0.4 + letter_img[:,:,::-1]
+
             # cv.imwrite('img/hotmap.jpg', superimposed_img)
+            # cv.waitKey()
+            # ----------------------------------保存特定类别热力图-----------------------------------#
 
             # 利用预测结果进行解码
             outputs = decode_bbox(output_hm, output_center, output_vertex, output_size, self.image_size, self.confidence, self.cuda, 50)
 
-            #-------------------------------------------------------#
-            #   对于centernet网络来讲，确立中心非常重要。
-            #   对于大目标而言，会存在许多的局部信息。
-            #   此时对于同一个大目标，中心点比较难以确定。
-            #   使用最大池化的非极大抑制方法无法去除局部框
-            #   所以我还是写了另外一段对框进行非极大抑制的代码
-            #   实际测试中，hourglass为主干网络时有无额外的nms相差不大，resnet相差较大。
-            #-------------------------------------------------------#
+            # 使用nms筛选预测框
             empty_box = []
             try:
                 if self.nms:
@@ -198,14 +195,27 @@ class Bbox3dPred(object):
         # 如果开启记录结果选项
         if is_record_result:
             # 首先判断是否存在以下文件夹，不存在则创建
-            if not os.path.exists("./input"):
-                os.makedirs("./input")
-            if not os.path.exists("./input/detection-results"):
-                os.makedirs("./input/detection-results")
-            if not os.path.exists("./input/images-optional"):
-                os.makedirs("./input/images-optional")
+            # 2D
+            if not os.path.exists("./input-2D"):
+                os.makedirs("./input-2D")
+            if not os.path.exists("./input-2D/detection-results"):
+                os.makedirs("./input-2D/detection-results")
+            if not os.path.exists("./input-2D/images-optional"):
+                os.makedirs("./input-2D/images-optional")
+            # 3D
+            if not os.path.exists("./input-3D"):
+                os.makedirs("./input-3D")
+            if not os.path.exists("./input-3D/detection-results"):
+                os.makedirs("./input-3D/detection-results")
+            if not os.path.exists("./input-3D/images-optional"):
+                os.makedirs("./input-3D/images-optional")
+
             # 打开记录txt文件
-            f = open("./input/detection-results/"+image_id+".txt","w")
+            f_2d = open("./input-2D/detection-results/"+image_id+".txt","w")
+            f_3d = open("./input-3D/detection-results/"+image_id+".txt","w")
+
+            calib_matrix = read_calib_params(calib_path, image_shape[1], image_shape[0])
+
 
         for i in range(len(top_label_indices)):
             predicted_class = self.class_names[int(top_label_indices[i])]
@@ -268,10 +278,17 @@ class Bbox3dPred(object):
                     if is_record_result:
                         if vertex[14] < vertex[2]:  # right perspective(7,1)
                             left, top, right, bottom = vertex[14], vertex[15], vertex[2], vertex[3]
-                            f.write("%s %s %s %s %s %s\n" % (predicted_class, str(score)[:6], str(int(left)), str(int(top)), str(int(right)),str(int(bottom))))
+                            f_2d.write("%s %s %s %s %s %s\n" % (predicted_class, str(score)[:6], str(int(left)), str(int(top)), str(int(right)),str(int(bottom))))
                         else:  # left perspective  (1x,6y,7x,0y)
                             left, top, right, bottom = vertex[2], vertex[13], vertex[14], vertex[1]
-                            f.write("%s %s %s %s %s %s\n" % (predicted_class, str(score)[:6], str(int(left)), str(int(top)), str(int(right)),str(int(bottom))))
+                            f_2d.write("%s %s %s %s %s %s\n" % (predicted_class, str(score)[:6], str(int(left)), str(int(top)), str(int(right)),str(int(bottom))))
+
+                        vertex_3d = cal_pred_3dvertex(vertex, h, calib_matrix)
+                        line_3d = ""
+                        for i in vertex_3d:
+                            line_3d += " " + str(i)
+                        f_3d.write("%s %s %s\n" % (predicted_class, str(score)[:6], str(line_3d.strip())))
+
                     del draw
         return image, process_time
 

@@ -119,12 +119,16 @@ def basic_3diou(b1, b2):
     y_overlap = max_y - min_y
     z_overlap = max_z - min_z
 
-    overlap_volumn = x_overlap*y_overlap*z_overlap
-    b1_volumn = abs(b1[3]-b1[0])*(b1[10]-b1[1])*(b1[14]-b1[2])
-    b2_volumn = abs(b2[3]-b2[0])*(b2[10]-b2[1])*(b2[14]-b2[2])
+    if x_overlap > 0 and y_overlap > 0 and z_overlap > 0:
+        overlap_volumn = x_overlap*y_overlap*z_overlap
+        b1_volumn = abs(b1[3]-b1[0])*(b1[10]-b1[1])*(b1[14]-b1[2])
+        b2_volumn = abs(b2[3]-b2[0])*(b2[10]-b2[1])*(b2[14]-b2[2])
 
-    union_volumn = b1_volumn + b2_volumn - overlap_volumn
-    iou = overlap_volumn / union_volumn
+        union_volumn = b1_volumn + b2_volumn - overlap_volumn
+        iou = overlap_volumn / union_volumn
+    else:
+        iou = 0
+
     return iou
 
 
@@ -290,6 +294,21 @@ def cal_pred_2dvertex(perspective, base_point, l, w, h, m_trans):
         p7 = RDXYZToUV(m_trans, w_p1[0] + w * 1000, w_p1[1] + l * 1000, w_p1[2] + h * 1000)
     return np.array([p0[0], p0[1], base_point[0], base_point[1], p2[0], p2[1], p3[0], p3[1],
             p4[0], p4[1], p5[0], p5[1], p6[0], p6[1], p7[0], p7[1]], dtype=np.float32)
+
+
+def cal_pred_3dvertex(vertex_2d, h, m_trans):
+    # 根据标定结果、2d顶点坐标、车辆高度，计算出3D box的顶点在世界中坐标
+    w_p0 = RDUVtoXYZ(m_trans, vertex_2d[0], vertex_2d[1], 0)
+    w_p1 = RDUVtoXYZ(m_trans, vertex_2d[2], vertex_2d[3], 0)
+    w_p2 = RDUVtoXYZ(m_trans, vertex_2d[4], vertex_2d[5], 0)
+    w_p3 = RDUVtoXYZ(m_trans, vertex_2d[6], vertex_2d[7], 0)
+    w_p4 = RDUVtoXYZ(m_trans, vertex_2d[8], vertex_2d[9], h * 1000)
+    w_p5 = RDUVtoXYZ(m_trans, vertex_2d[10], vertex_2d[11], h * 1000)
+    w_p6 = RDUVtoXYZ(m_trans, vertex_2d[12], vertex_2d[13], h * 1000)
+    w_p7 = RDUVtoXYZ(m_trans, vertex_2d[14], vertex_2d[15], h * 1000)
+    return np.array([w_p0[0], w_p0[1], w_p0[2], w_p1[0], w_p1[1], w_p1[2],w_p2[0], w_p2[1], w_p2[2],
+    w_p3[0], w_p3[1], w_p3[2],w_p4[0], w_p4[1], w_p4[2],w_p5[0], w_p5[1], w_p5[2],
+    w_p6[0], w_p6[1], w_p6[2],w_p7[0], w_p7[1], w_p7[2]], dtype=np.float32)
 
 
 def decode_bbox(pred_hms, pred_center, pred_vertex, pred_size, image_size, threshold, cuda, topk=100):

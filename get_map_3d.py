@@ -1,3 +1,4 @@
+# 3D mAP -- 修改iou--> 3d iou
 import glob
 import json
 import os
@@ -8,6 +9,9 @@ import argparse
 import math
 
 import numpy as np
+
+from utils import basic_3diou
+
 #----------------------------------------------------#
 #   用于计算mAP
 #   代码克隆自https://github.com/Cartucho/mAP
@@ -36,6 +40,16 @@ args = parser.parse_args()
                 (Right,Bottom)
 '''
 
+'''
+        6 -------- 7
+       /|         /|
+      5 -------- 4 .
+      | |        | |
+      . 2 -------- 3
+      |/         |/
+      1 -------- 0
+'''
+
 # if there are no classes to ignore then replace None by empty list
 if args.ignore is None:
     args.ignore = []
@@ -47,11 +61,11 @@ if args.set_class_iou is not None:
 # make sure that the cwd() is the location of the python script (so that every path makes sense)
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-GT_PATH = os.path.join(os.getcwd(), 'input', 'ground-truth')
-DR_PATH = os.path.join(os.getcwd(), 'input', 'detection-results')
+GT_PATH = os.path.join(os.getcwd(), 'input-3D', 'ground-truth')
+DR_PATH = os.path.join(os.getcwd(), 'input-3D', 'detection-results')
 # if there are no images then no animation can be shown
-IMG_PATH = os.path.join(os.getcwd(), 'input', 'images-optional')
-if os.path.exists(IMG_PATH): 
+IMG_PATH = os.path.join(os.getcwd(), 'input-3D', 'images-optional')
+if os.path.exists(IMG_PATH):
     for dirpath, dirnames, files in os.walk(IMG_PATH):
         if not files:
             # no image files found
@@ -339,7 +353,7 @@ def draw_plot_func(dictionary, n_classes, window_title, plot_title, x_label, out
 TEMP_FILES_PATH = ".temp_files"
 if not os.path.exists(TEMP_FILES_PATH): # if it doesn't exist already
     os.makedirs(TEMP_FILES_PATH)
-results_files_path = "results"
+results_files_path = "results-3D"
 if os.path.exists(results_files_path): # if it exist already
     # reset the results directory
     shutil.rmtree(results_files_path)
@@ -385,36 +399,47 @@ for txt_file in ground_truth_files_list:
     for line in lines_list:
         try:
             if "difficult" in line:
-                    class_name, left, top, right, bottom, _difficult = line.split()
+                    class_name, x0, y0, z0, x1, y1, z1, x2, y2, z2, x3, y3, z3, 
+                    x4, y4, z4, x5, y5, z5, x6, y6, z6, x7, y7, z7, _difficult = line.split()
                     is_difficult = True
             else:
-                    class_name, left, top, right, bottom = line.split()
+                    class_name, x0, y0, z0, x1, y1, z1, x2, y2, z2, x3, y3, z3, 
+                    x4, y4, z4, x5, y5, z5, x6, y6, z6, x7, y7, z7 = line.split()
                     
         except:
             if "difficult" in line:
                 line_split = line.split()
                 _difficult = line_split[-1]
-                bottom = line_split[-2]
-                right = line_split[-3]
-                top = line_split[-4]
-                left = line_split[-5]
+                x0, y0, z0 = line_split[1], line_split[2], line_split[3]
+                x1, y1, z1 = line_split[4], line_split[5], line_split[6]
+                x2, y2, z2 = line_split[7], line_split[8], line_split[9]
+                x3, y3, z3 = line_split[10], line_split[11], line_split[12]
+                x4, y4, z4 = line_split[13], line_split[14], line_split[15]
+                x5, y5, z5 = line_split[16], line_split[17], line_split[18]
+                x6, y6, z6 = line_split[19], line_split[20], line_split[21]
+                x7, y7, z7 = line_split[22], line_split[23], line_split[24]
+
                 class_name = ""
-                for name in line_split[:-5]:
+                for name in line_split[:1]:
                     class_name += name
                 is_difficult = True
             else:
                 line_split = line.split()
-                bottom = line_split[-1]
-                right = line_split[-2]
-                top = line_split[-3]
-                left = line_split[-4]
+                x0, y0, z0 = line_split[1], line_split[2], line_split[3]
+                x1, y1, z1 = line_split[4], line_split[5], line_split[6]
+                x2, y2, z2 = line_split[7], line_split[8], line_split[9]
+                x3, y3, z3 = line_split[10], line_split[11], line_split[12]
+                x4, y4, z4 = line_split[13], line_split[14], line_split[15]
+                x5, y5, z5 = line_split[16], line_split[17], line_split[18]
+                x6, y6, z6 = line_split[19], line_split[20], line_split[21]
+                x7, y7, z7 = line_split[22], line_split[23], line_split[24]
                 class_name = ""
-                for name in line_split[:-4]:
+                for name in line_split[:1]:
                     class_name += name
         # check if class is in the ignore list, if yes skip
         if class_name in args.ignore:
             continue
-        bbox = left + " " + top + " " + right + " " +bottom
+        bbox = x0 + " " + y0 + " " + z0 + " " + x1 + " " + y1 + " " + z1 + " " + x2 + " " + y2 + " " + z2 + " " + x3 + " " + y3 + " " + z3 + " " + x4 + " " + y4 + " " + z4 + " " + x5 + " " + y5 + " " + z5 + " " + x6 + " " + y6 + " " + z6 + " " + x7 + " " + y7 + " " + z7
         if is_difficult:
                 bounding_boxes.append({"class_name":class_name, "bbox":bbox, "used":False, "difficult":True})
                 is_difficult = False
@@ -493,23 +518,29 @@ for class_index, class_name in enumerate(gt_classes):
                 error_msg += "(You can avoid this error message by running extra/intersect-gt-and-dr.py)"
                 error(error_msg)
         lines = file_lines_to_list(txt_file)
+
         for line in lines:
             try:
-                tmp_class_name, confidence, left, top, right, bottom = line.split()
+                tmp_class_name, confidence, x0, y0, z0, x1, y1, z1, x2, y2, z2, x3, y3, z3, 
+                x4, y4, z4, x5, y5, z5, x6, y6, z6, x7, y7, z7 = line.split()
             except:
                 line_split = line.split()
-                bottom = line_split[-1]
-                right = line_split[-2]
-                top = line_split[-3]
-                left = line_split[-4]
-                confidence = line_split[-5]
+                x0, y0, z0 = line_split[2], line_split[3], line_split[4]
+                x1, y1, z1 = line_split[5], line_split[6], line_split[7]
+                x2, y2, z2 = line_split[8], line_split[9], line_split[10]
+                x3, y3, z3 = line_split[11], line_split[12], line_split[13]
+                x4, y4, z4 = line_split[14], line_split[15], line_split[16]
+                x5, y5, z5 = line_split[17], line_split[18], line_split[19]
+                x6, y6, z6 = line_split[20], line_split[21], line_split[22]
+                x7, y7, z7 = line_split[23], line_split[24], line_split[25]
+                confidence = line_split[1]
                 tmp_class_name = ""
-                for name in line_split[:-5]:
+                for name in line_split[:1]:
                     tmp_class_name += name
 
             if tmp_class_name == class_name:
                 #print("match")
-                bbox = left + " " + top + " " + right + " " +bottom
+                bbox = x0 + " " + y0 + " " + z0 + " " + x1 + " " + y1 + " " + z1 + " " + x2 + " " + y2 + " " + z2 + " " + x3 + " " + y3 + " " + z3 + " " + x4 + " " + y4 + " " + z4 + " " + x5 + " " + y5 + " " + z5 + " " + x6 + " " + y6 + " " + z6 + " " + x7 + " " + y7 + " " + z7
                 bounding_boxes.append({"confidence":confidence, "file_id":file_id, "bbox":bbox})
                 #print(bounding_boxes)
     # sort detection-results by decreasing confidence
@@ -579,22 +610,25 @@ with open(results_files_path + "/results.txt", 'w') as results_file:
             ovmax = -1
             gt_match = -1
             # load detected object bounding-box
-            bb = [ float(x) for x in detection["bbox"].split() ]
+            bb = [ float(x) for x in detection["bbox"].split() ]  # 检测到的
             for obj in ground_truth_data:
                 # look for a class_name match
                 if obj["class_name"] == class_name:
-                    bbgt = [ float(x) for x in obj["bbox"].split() ]
-                    bi = [max(bb[0],bbgt[0]), max(bb[1],bbgt[1]), min(bb[2],bbgt[2]), min(bb[3],bbgt[3])]
-                    iw = bi[2] - bi[0] + 1
-                    ih = bi[3] - bi[1] + 1
-                    if iw > 0 and ih > 0:
-                        # compute overlap (IoU) = area of intersection / area of union
-                        ua = (bb[2] - bb[0] + 1) * (bb[3] - bb[1] + 1) + (bbgt[2] - bbgt[0]
-                                        + 1) * (bbgt[3] - bbgt[1] + 1) - iw * ih
-                        ov = iw * ih / ua
-                        if ov > ovmax:
-                            ovmax = ov
-                            gt_match = obj
+                    bbgt = [ float(x) for x in obj["bbox"].split() ]  # 真值
+
+                    ov = basic_3diou(bb, bbgt)
+
+                    # bi = [max(bb[0],bbgt[0]), max(bb[1],bbgt[1]), min(bb[2],bbgt[2]), min(bb[3],bbgt[3])]
+                    # iw = bi[2] - bi[0] + 1
+                    # ih = bi[3] - bi[1] + 1
+                    # if iw > 0 and ih > 0:
+                    #     # compute overlap (IoU) = area of intersection / area of union
+                    #     ua = (bb[2] - bb[0] + 1) * (bb[3] - bb[1] + 1) + (bbgt[2] - bbgt[0]
+                    #                     + 1) * (bbgt[3] - bbgt[1] + 1) - iw * ih
+                    #     ov = iw * ih / ua
+                    if ov > ovmax:
+                        ovmax = ov
+                        gt_match = obj
 
             # assign detection as true positive/don't care/false positive
             if show_animation:
