@@ -32,11 +32,10 @@ class Bbox3dPred(object):
         "confidence"        : 0.15,
         # backbone为resnet50时建议设置为True
         # backbone为hourglass时建议设置为False
-        # 也可以根据检测效果自行选择
         "nms"               : True,
         "nms_threhold"      : 0.5,
         "cuda"              : True,
-        "letterbox_image"   : True
+        "letterbox_image"   : True   # 经过测试该部分建议设置为True
     }
 
     @classmethod
@@ -45,11 +44,10 @@ class Bbox3dPred(object):
             return cls._defaults[n]
         else:
             return "Unrecognized attribute name '" + n + "'"
-    
 
-    # 初始化Bbox3d
-    def __init__(self, **kwargs):
-        self.__dict__.update(self._defaults)
+    # 初始化Bbox3d类
+    def __init__(self):
+        self.__dict__.update(self._defaults)  # 将字典的key转换为类属性，self.可以直接访问
         self.class_names = self._get_class()
         self.generate()
 
@@ -148,6 +146,30 @@ class Bbox3dPred(object):
             # cv.imwrite('img/hotmap.jpg', superimposed_img)
             # cv.waitKey()
             # ----------------------------------保存特定类别热力图-----------------------------------#
+
+            # ----------------------------------保存所有类别叠加热力图-----------------------------------#
+            final_heatmap = np.zeros((self.image_size[0], self.image_size[1], 3), dtype=np.uint8)
+            for i in range(self.num_classes):
+                hotmap = output_hm[0].cpu().numpy().transpose(1, 2, 0)[..., i]  # 分别取每一类热力图叠加
+
+                import matplotlib.pyplot as plt
+
+                heatmap = np.maximum(hotmap, 0)
+                heatmap /= np.max(heatmap)
+
+                heatmap = cv.resize(heatmap, (self.image_size[0], self.image_size[1]))
+                heatmap = np.uint8(255 * heatmap)
+                heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
+
+                heatmap = heatmap / self.num_classes
+                heatmap = heatmap.astype(np.uint8)
+
+                final_heatmap += heatmap
+
+            superimposed_img = final_heatmap * 0.4 + letter_img * 0.8
+            cv.imwrite('img/hotmap.jpg', superimposed_img)
+            cv.waitKey()
+            # ----------------------------------保存所有类别叠加热力图-----------------------------------#
 
             # 利用预测结果进行解码
             outputs = decode_bbox(output_hm, output_center, output_vertex, output_size, self.image_size, self.confidence, self.cuda, 50)

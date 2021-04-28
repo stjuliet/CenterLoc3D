@@ -6,14 +6,14 @@ import os
 import random
 random.seed(0)  # 每次划分结果一样
 
-xmlfilepath=r'DATAdevkit/DATA2021/Annotations'
-saveBasePath=r"DATAdevkit/DATA2021/ImageSets/Main"
+xmlfilepath = "DATAdevkit/DATA2021/Annotations"
+saveBasePath = "DATAdevkit/DATA2021/ImageSets/Main"
 
 # 想要增加测试集修改trainval_percent
 # train_percent不需要修改
 # 训练验证、测试 9:1
-trainval_percent=0.9
-train_percent=1
+trainval_percent = 0.9
+train_percent = 1
 
 temp_xml = os.listdir(xmlfilepath)
 total_xml = []
@@ -21,22 +21,22 @@ for xml in temp_xml:
     if xml.endswith(".xml"):
         total_xml.append(xml)
 
-num=len(total_xml)
-list=range(num)
-tv=int(num*trainval_percent)
-tr=int(tv*train_percent)
-trainval= random.sample(list,tv)
-train=random.sample(trainval,tr)
+num = len(total_xml)
+list = range(num)
+tv = int(num*trainval_percent)
+tr = int(tv*train_percent)
+trainval = random.sample(list, tv)
+train = random.sample(trainval, tr)
 
-print("train and val size",tv)
-print("train size",tr)
-ftrainval = open(os.path.join(saveBasePath,'trainval.txt'), 'w')
-ftest = open(os.path.join(saveBasePath,'test.txt'), 'w')
-ftrain = open(os.path.join(saveBasePath,'train.txt'), 'w')
-fval = open(os.path.join(saveBasePath,'val.txt'), 'w')
+print("train and val size", tv)
+print("train size", tr)
+ftrainval = open(os.path.join(saveBasePath, "trainval.txt"), "w")
+ftest = open(os.path.join(saveBasePath, "test.txt"), "w")
+ftrain = open(os.path.join(saveBasePath, "train.txt"), "w")
+fval = open(os.path.join(saveBasePath, "val.txt"), "w")
 
 for i in list:
-    name=total_xml[i][:-4]+'\n'
+    name = total_xml[i][:-4] + "\n"
     if i in trainval:
         ftrainval.write(name)
         if i in train:
