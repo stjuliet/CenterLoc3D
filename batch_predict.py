@@ -12,7 +12,7 @@ test_txt_path = "DATA2021_test.txt"
 # 是否记录测试结果，用于评价map
 record_result = False
 # 是否保存测试结果图片
-save_test_img = False
+save_test_img = True
 
 total_proc_time = 0
 with open(test_txt_path, "r") as fread:
@@ -26,7 +26,7 @@ with open(test_txt_path, "r") as fread:
             total_proc_time += proc_time
             if save_test_img:
                 r_image.save("./input-2D/images-optional/" + str(single_test_file_path.split(" ")[0].split("/")[-1]))
-                r_image.save("./input-3D/images-optional/" + str(single_test_file_path.split(" ")[0].split("/")[-1]))
+                # r_image.save("./input-3D/images-optional/" + str(single_test_file_path.split(" ")[0].split("/")[-1]))
             
             pbar.set_postfix(**{"single fps" : round(1 / proc_time, 4)})  # 保留4位小数
             pbar.update(1)

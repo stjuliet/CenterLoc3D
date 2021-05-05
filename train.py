@@ -175,7 +175,7 @@ if __name__ == "__main__":
     if backbone[:-2] == "resnet":
         model = KeyPointDetection(model_index=backbone_resnet_index[backbone], num_classes=num_classes, pretrained_weights=pretrain)
     if backbone == "hourglass":
-        model = HourglassNet(2, 1, 256, 3, HgResBlock, inplanes=3)
+        model = HourglassNet(5, 2, 256, 3, HgResBlock, inplanes=3)
 
 
     # 加载训练好的模型权重
