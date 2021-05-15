@@ -3,7 +3,8 @@ import math
 import torch
 import torch.nn as nn
 from torchsummary import summary
-from resnets import resnet18, resnet34, resnet50, resnet101, resnet152
+from nets.resnets import resnet18, resnet34, resnet50, resnet101, resnet152
+from nets.efficientnet import EfficientNet as EffNet
 
 
 class Resnet(nn.Module):
@@ -32,6 +33,44 @@ class Resnet(nn.Module):
         feat3 = self.model.layer4(feat2)
         # size: 64, 32, 16  channels: 512, 1024, 2048
         return feat1, feat2, feat3
+
+
+class EfficientNet(nn.Module):
+    def __init__(self, phi, load_weights=False):
+        super(EfficientNet, self).__init__()
+        model = EffNet.from_pretrained(f'efficientnet-b{phi}', load_weights)
+        del model._conv_head
+        del model._bn1
+        del model._avg_pooling
+        del model._dropout
+        del model._fc
+        self.model = model
+
+    def forward(self, x):
+        x = self.model._conv_stem(x)
+        x = self.model._bn0(x)
+        x = self.model._swish(x)
+        feature_maps = []
+
+        last_x = None
+        for idx, block in enumerate(self.model._blocks):
+            drop_connect_rate = self.model._global_params.drop_connect_rate
+            if drop_connect_rate:
+                drop_connect_rate *= float(idx) / len(self.model._blocks)
+            x = block(x, drop_connect_rate=drop_connect_rate)
+
+            #------------------------------------------------------#
+            #   取出对应的特征层，如果某个EffcientBlock的步长为2的话
+            #   意味着它的前一个特征层为有效特征层
+            #   除此之外，最后一个EffcientBlock的输出为有效特征层
+            #------------------------------------------------------#
+            if block._depthwise_conv.stride == [2, 2]:
+                feature_maps.append(last_x)
+            elif idx == len(self.model._blocks) - 1:
+                feature_maps.append(x)
+            last_x = x
+        del last_x
+        return feature_maps[2:]
 
 
 class FPN(nn.Module):
@@ -168,17 +207,39 @@ class KeyPointDetection(nn.Module):
     '''
     inplementation of the network (4 components)
     '''
-    def __init__(self, model_index, num_classes, pretrained_weights = False):
+    def __init__(self, model_name, model_index, num_classes, pretrained_weights = False):
         super(KeyPointDetection, self).__init__()
         self.pretrained_weights = pretrained_weights
-        self.backbone = Resnet(model_index, pretrained_weights)
-        fpn_size_dict = {
+        if model_name == "resnet":
+            self.backbone = Resnet(model_index, pretrained_weights)
+            fpn_size_dict = {
             0: [128, 256, 512],
             1: [128, 256, 512],
             2: [512, 1024, 2048],
             3: [512, 1024, 2048],
             4: [512, 1024, 2048],
-        }[model_index]
+            }[model_index]
+        if model_name == "efficientnet":
+            self.backbone_phi = [0, 1, 2, 3, 4, 5, 6, 6]
+            fpn_size_dict = {
+            0: [40, 112, 320],
+            1: [40, 112, 320],
+            2: [48, 120, 352],
+            3: [48, 136, 384],
+            4: [56, 160, 448],
+            5: [64, 176, 512],
+            6: [72, 200, 576],
+            7: [72, 200, 576],
+            }[model_index]
+
+            #-------------------------------------------#
+            #   获得三个shape的有效特征层
+            #   分别是C3  64, 64, 40
+            #         C4  32, 32, 112
+            #         C5  16, 16, 320
+            #-------------------------------------------#
+            self.backbone = EfficientNet(self.backbone_phi[model_index], pretrained_weights)
+
         self.fpn = FPN(fpn_size_dict[0], fpn_size_dict[1], fpn_size_dict[2])
         self.detection_head = DetectionHead(in_channels=64, num_classes=num_classes)
     
@@ -199,10 +260,12 @@ class KeyPointDetection(nn.Module):
 
 if __name__ == "__main__":
     feature = torch.randn((1, 3, 512, 512))
-    model = KeyPointDetection(2, num_classes=3)
+    # resnet-50
+    # model = KeyPointDetection("resnet", 2, num_classes=3)
+    # efficientnet-b4
+    model = KeyPointDetection("efficientnet", 4, num_classes=3)
     bt_hm, bt_center, bt_vertex, bt_size = model(feature)
     print(bt_center.shape)
     print(bt_size.shape)
     # 输出summary的时候，model中返回特征图不能以list形式打包返回
     print(summary(model,(3, 512, 512), batch_size=1, device='cpu'))
-

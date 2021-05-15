@@ -5,9 +5,9 @@ import cv2 as cv
 import numpy as np
 
 import torch
-import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
@@ -19,9 +19,10 @@ import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw
 
 from fpn import KeyPointDetection
-from hourglass import HourglassNet, HgResBlock
+from hourglass_official import HourglassNet, Bottleneck
 from loss import focal_loss, reg_l1_loss, reproject_l1_loss
 from dataloader import Bbox3dDatasets, bbox3d_dataset_collate
+
 
 mean = [0.40789655, 0.44719303, 0.47026116]
 std = [0.2886383, 0.27408165, 0.27809834]
@@ -39,9 +40,11 @@ def get_lr(optimizer):
     for param_group in optimizer.param_groups:
         return param_group['lr']
 
-def fit_one_epoch(net, epoch, epoch_size, epoch_size_val, gen, genval, Epoch, cuda, writer):
+def fit_one_epoch(net, backbone, epoch, epoch_size, epoch_size_val, gen, genval, Epoch, cuda, writer):
     """
     func: 训练一个epoch
+    net: 模型
+    backbone: 主干特征提取网络名称
     epoch: 当前轮数
     epoch_size: 总训练迭代数
     epoch_size_val: 总验证迭代数
@@ -146,7 +149,8 @@ def fit_one_epoch(net, epoch, epoch_size, epoch_size_val, gen, genval, Epoch, cu
     print('Total train loss: %.4f || Val loss: %.4f ' % (total_train_loss/(epoch_size+1),val_loss/(epoch_size_val+1)))
 
     print('Saving state, iter:', str(epoch+1))
-    torch.save(model.state_dict(), 'logs/Epoch%d-Total_train_Loss%.4f-Val_Loss%.4f.pth'%((epoch+1),total_train_loss/(epoch_size+1),val_loss/(epoch_size_val+1)))
+    # 保存时可记录backbone名称，方便区分
+    torch.save(model.state_dict(), 'logs/%s-Epoch%d-Total_train_Loss%.4f-Val_Loss%.4f.pth'%(backbone,(epoch+1),total_train_loss/(epoch_size+1),val_loss/(epoch_size_val+1)))
     return val_loss/(epoch_size_val+1)
     
 if __name__ == "__main__":
@@ -161,48 +165,61 @@ if __name__ == "__main__":
     class_names = get_classes(classes_path)
     num_classes = len(class_names)
 
-    # 是否使用imagenet-resnet50的预训练权重。
+    # 是否使用仅backbone的预训练权重
     pretrain = True
 
     # 指定backbone
-    backbone = "resnet50"
+    backbone = "efficientnetb4"
 
     # 是否使用Cuda
     Cuda = True
 
     # 获取模型
     backbone_resnet_index = {"resnet18": 0, "resnet34": 1, "resnet50": 2, "resnet101": 3, "resnet152": 4}
+    backbone_efficientnet_index = {"efficientnetb0": 0, "efficientnetb1": 1, "efficientnetb2": 2,
+                     "efficientnetb3": 3, "efficientnetb4": 4, "efficientnetb5": 5, "efficientnetb6": 6, "efficientnetb7": 7}
+
     if backbone[:-2] == "resnet":
-        model = KeyPointDetection(model_index=backbone_resnet_index[backbone], num_classes=num_classes, pretrained_weights=pretrain)
+        model = KeyPointDetection(model_name=backbone[:-2], model_index=backbone_resnet_index[backbone], num_classes=num_classes, pretrained_weights=pretrain)
+    if backbone[:-2] == "efficientnet":
+        model = KeyPointDetection(model_name=backbone[:-2], model_index=backbone_efficientnet_index[backbone], num_classes=num_classes, pretrained_weights=pretrain)
     if backbone == "hourglass":
-        model = HourglassNet(5, 2, 256, 3, HgResBlock, inplanes=3)
+        model = HourglassNet(Bottleneck, num_stacks=8, num_blocks=1, num_classes=num_classes)
+        if pretrain:  # 额外加载hourglass预训练模型
+            model_path = "model_data/hourglass-s8b1-best.pth.tar"
+            print('Loading pretrained weights into state dict...')
 
+            model_dict = model.state_dict()  # 原始模型字典
+            pretrained_dict = torch.load(model_path)
+            state_dict = pretrained_dict['state_dict']  # 加载模型字典
+            matched_model_dict = ["module." + mdk for mdk in model_dict.keys()]  # 将原始模型字典的键修改到加载的模型
+            # k.replace("module.", "")  保存时将加载模型字典中的键前面的module.去掉，恢复原始
+            final_model_dict = {k.replace("module.", ""): v for k, v in state_dict.items() if k in matched_model_dict}
+            model_dict.update(final_model_dict)  # 更新到原始模型字典中
+            model.load_state_dict(model_dict, strict=False)
+            print('Finished!')
 
-    # 加载训练好的模型权重
     # 断点续训练
-    model_path = r"logs\Epoch60-Total_train_Loss8.5380-Val_Loss7.4408.pth"
-    print('Loading weights into state dict...')
-    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    # state_dict = torch.load(model_path, map_location=device)
-    # model.load_state_dict(state_dict,strict=False)
-
-    model_dict = model.state_dict()
-    pretrained_dict = torch.load(model_path)
-    pretrained_dict = {k: v for k, v in pretrained_dict.items() if np.shape(model_dict[k]) ==  np.shape(v)}
-    model_dict.update(pretrained_dict)
-    model.load_state_dict(model_dict)
-    print('Finished!')
+    # model_path = "logs/Epoch60-Total_train_Loss8.5380-Val_Loss7.4408.pth"
+    # print('Loading weights into state dict...')
+    # model_dict = model.state_dict()
+    # pretrained_dict = torch.load(model_path)
+    # pretrained_dict = {k: v for k, v in pretrained_dict.items() if np.shape(model_dict[k]) ==  np.shape(v)}
+    # model_dict.update(pretrained_dict)
+    # model.load_state_dict(model_dict)
+    # print('Finished!')
 
     net = model.train()
 
     # 设置早停
-    patience = 20  # 当验证集损失在连续20次训练周期中都没有得到降低时，停止模型训练，以防止模型过拟合
+    patience = 7  # 当验证集损失在连续7个epoch训练周期中都没有得到降低时，停止模型训练，以防止模型过拟合
     early_stopping = EarlyStopping(patience, verbose=True)
 
     if Cuda:
         net = torch.nn.DataParallel(model)
         cudnn.benchmark = True
         net = net.cuda()
+
 
     # 获得图片路径和标签
     annotation_path = 'DATA2021_train.txt'
@@ -227,7 +244,7 @@ if __name__ == "__main__":
         graph_inputs = torch.from_numpy(np.random.rand(1,3,input_shape[0],input_shape[1])).type(torch.FloatTensor)
     writer.add_graph(model, (graph_inputs,))
 
-    train_tensorboard_step = 3300 + 1  # 断点续训练
+    train_tensorboard_step = 1
     val_tensorboard_step = 1
     
     #   主干特征提取网络特征通用，冻结训练可以加快训练速度
@@ -239,9 +256,9 @@ if __name__ == "__main__":
 
     if True:
         # 超参数设置
-        lr = 3.125e-5
-        Batch_size = 4
-        Init_Epoch = 50
+        lr = 1e-3
+        Batch_size = 16
+        Init_Epoch = 0
         Freeze_Epoch = 60
         
         optimizer = optim.Adam(net.parameters(),lr,weight_decay=5e-4)
@@ -340,7 +357,7 @@ if __name__ == "__main__":
 
 
         for epoch in range(Init_Epoch,Freeze_Epoch):
-            val_loss = fit_one_epoch(net,epoch,epoch_size,epoch_size_val,gen,gen_val,Freeze_Epoch,Cuda, writer)
+            val_loss = fit_one_epoch(net,backbone,epoch,epoch_size,epoch_size_val,gen,gen_val,Freeze_Epoch,Cuda, writer)
             lr_scheduler.step(val_loss)
 
     if True:
@@ -367,7 +384,7 @@ if __name__ == "__main__":
         model.unfreeze_backbone()
 
         for epoch in range(Freeze_Epoch,Unfreeze_Epoch):
-            val_loss = fit_one_epoch(net,epoch,epoch_size,epoch_size_val,gen,gen_val,Unfreeze_Epoch,Cuda, writer)
+            val_loss = fit_one_epoch(net,backbone,epoch,epoch_size,epoch_size_val,gen,gen_val,Unfreeze_Epoch,Cuda, writer)
             lr_scheduler.step(val_loss)
             
             early_stopping(val_loss, net)

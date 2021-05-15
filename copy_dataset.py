@@ -24,3 +24,5 @@ for single_dataset_path_list in dataset_path_list:
             img_new_path = voc_img_dir + "\\" + file_name[:-4] + ".jpg"
             # copy img
             shutil.copy(img_raw_path, img_new_path)
+
+print("finish copy!")

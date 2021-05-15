@@ -1,4 +1,6 @@
 # hourglass
+# - reference: http://t.zoukankan.com/xxxxxxxxx-p-11651437.html
+
 import torch
 import torch.nn as nn
 from torchsummary import summary
@@ -167,3 +169,4 @@ if __name__ == "__main__":
     print(bt_size.shape)
     # 输出summary的时候，model中返回特征图不能以list形式打包返回
     print(summary(model,(3, 512, 512), batch_size=1, device='cpu'))
+    

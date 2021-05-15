@@ -66,3 +66,6 @@ if __name__ == "__main__":
             convert_annotation(year, image_id, list_file)
             list_file.write('\n')
         list_file.close()
+
+    print("finish convert!")
+    

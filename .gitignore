@@ -1,5 +1,6 @@
 .vscode
 /__pycache__/
+/nets/__pycache__/
 
 # ignore all .jpg .xml .txt files
 *.jpg
