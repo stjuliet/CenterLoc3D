@@ -64,3 +64,5 @@ for image_id in tqdm(image_ids):
                 for i in veh_vertex_data_3d:
                     line_3d += " " + str(i)
                 f_3d.write("%s %s\n" % (str(veh_type_data), str(line_3d.strip())))
+
+print("gt files finished!")

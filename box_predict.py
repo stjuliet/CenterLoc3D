@@ -11,7 +11,7 @@ from torch import nn
 from torch.autograd import Variable
 
 from fpn import KeyPointDetection
-from hourglass import HourglassNet, HgResBlock, Hourglass
+from hourglass_official import HourglassNet, Bottleneck
 from utils import *
 
 
@@ -25,11 +25,11 @@ def preprocess_image(image):
 # model_path、classes_path和backbone
 class Bbox3dPred(object):
     _defaults = {
-        "model_path"        : 'logs\Epoch120-Total_train_Loss2.7936-Val_Loss4.7216.pth',
+        "model_path"        : 'logs/Epoch120-Total_train_Loss2.7936-Val_Loss4.7216.pth',
         "classes_path"      : 'model_data/classes.txt',
         "backbone"          : "resnet50",
         "image_size"        : [512,512,3],
-        "confidence"        : 0.15,
+        "confidence"        : 0.3,
         # backbone为resnet50时建议设置为True
         # backbone为hourglass时建议设置为False
         "nms"               : True,
@@ -62,13 +62,18 @@ class Bbox3dPred(object):
     # 载入模型
     def generate(self):
         self.backbone_resnet_index = {"resnet18": 0, "resnet34": 1, "resnet50": 2, "resnet101": 3, "resnet152": 4}
+        self.backbone_efficientnet_index = {"efficientnetb0": 0, "efficientnetb1": 1, "efficientnetb2": 2,
+                     "efficientnetb3": 3, "efficientnetb4": 4, "efficientnetb5": 5, "efficientnetb6": 6, "efficientnetb7": 7}
+
         # 计算类别数
         self.num_classes = len(self.class_names)
         # 创建模型
         if self.backbone[:-2] == "resnet":
-            self.model = KeyPointDetection(model_index=self.backbone_resnet_index[self.backbone], num_classes=self.num_classes, pretrained_weights=False)
+            self.model = KeyPointDetection(model_name=self.backbone[:-2], model_index=self.backbone_resnet_index[self.backbone], num_classes=self.num_classes)
+        if self.backbone[:-2] == "efficientnet":
+            self.model = KeyPointDetection(model_name=self.backbone[:-2], model_index=self.backbone_efficientnet_index[self.backbone], num_classes=self.num_classes)
         if self.backbone == "hourglass":
-            self.model = HourglassNet(2, 1, 256, 3, HgResBlock, inplanes=3)
+            self.model = HourglassNet(Bottleneck, num_stacks=8, num_blocks=1, num_classes=self.num_classes)
 
         # 载入权值
         print('Loading weights into state dict...')
@@ -148,27 +153,27 @@ class Bbox3dPred(object):
             # ----------------------------------保存特定类别热力图-----------------------------------#
 
             # ----------------------------------保存所有类别叠加热力图-----------------------------------#
-            final_heatmap = np.zeros((self.image_size[0], self.image_size[1], 3), dtype=np.uint8)
-            for i in range(self.num_classes):
-                hotmap = output_hm[0].cpu().numpy().transpose(1, 2, 0)[..., i]  # 分别取每一类热力图叠加
+            # final_heatmap = np.zeros((self.image_size[0], self.image_size[1], 3), dtype=np.uint8)
+            # for i in range(self.num_classes):
+            #     hotmap = output_hm[0].cpu().numpy().transpose(1, 2, 0)[..., i]  # 分别取每一类热力图叠加
 
-                import matplotlib.pyplot as plt
+            #     import matplotlib.pyplot as plt
 
-                heatmap = np.maximum(hotmap, 0)
-                heatmap /= np.max(heatmap)
+            #     heatmap = np.maximum(hotmap, 0)
+            #     heatmap /= np.max(heatmap)
 
-                heatmap = cv.resize(heatmap, (self.image_size[0], self.image_size[1]))
-                heatmap = np.uint8(255 * heatmap)
-                heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
+            #     heatmap = cv.resize(heatmap, (self.image_size[0], self.image_size[1]))
+            #     heatmap = np.uint8(255 * heatmap)
+            #     heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
 
-                heatmap = heatmap / self.num_classes
-                heatmap = heatmap.astype(np.uint8)
+            #     heatmap = heatmap / self.num_classes
+            #     heatmap = heatmap.astype(np.uint8)
 
-                final_heatmap += heatmap
+            #     final_heatmap += heatmap
 
-            superimposed_img = final_heatmap * 0.4 + letter_img * 0.8
-            cv.imwrite('img/hotmap.jpg', superimposed_img)
-            cv.waitKey()
+            # superimposed_img = final_heatmap * 0.4 + letter_img * 0.8
+            # cv.imwrite('img/hotmap.jpg', superimposed_img)
+            # cv.waitKey()
             # ----------------------------------保存所有类别叠加热力图-----------------------------------#
 
             # 利用预测结果进行解码

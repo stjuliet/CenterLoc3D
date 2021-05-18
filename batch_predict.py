@@ -10,7 +10,7 @@ model = Bbox3dPred()
 test_txt_path = "DATA2021_test.txt"
 
 # 是否记录测试结果，用于评价map
-record_result = False
+record_result = True
 # 是否保存测试结果图片
 save_test_img = True
 

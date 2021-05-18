@@ -16,4 +16,5 @@ while True:
     else:
         r_image, single_proc_time = model.detect_image(image, img.split("/")[-1][:-4], record_result)
         r_image.show()
+        # r_image.save("test.jpg")
         print("Single FPS: ", round(1 / single_proc_time, 4))
