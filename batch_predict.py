@@ -32,3 +32,10 @@ with open(test_txt_path, "r") as fread:
             pbar.update(1)
 
 print("Average FPS: ", round(len(test_file_path_list)/total_proc_time, 4))
+print("batch predict finished!")
+
+if record_result:
+    print("results recorded!")
+
+if save_test_img:
+    print("images saved!")

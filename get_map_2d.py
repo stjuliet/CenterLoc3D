@@ -579,11 +579,11 @@ with open(results_files_path + "/results.txt", 'w') as results_file:
             ovmax = -1
             gt_match = -1
             # load detected object bounding-box
-            bb = [ float(x) for x in detection["bbox"].split() ]
+            bb = [ float(x) for x in detection["bbox"].split()]
             for obj in ground_truth_data:
                 # look for a class_name match
                 if obj["class_name"] == class_name:
-                    bbgt = [ float(x) for x in obj["bbox"].split() ]
+                    bbgt = [ float(x) for x in obj["bbox"].split()]
                     bi = [max(bb[0],bbgt[0]), max(bb[1],bbgt[1]), min(bb[2],bbgt[2]), min(bb[3],bbgt[3])]
                     iw = bi[2] - bi[0] + 1
                     ih = bi[3] - bi[1] + 1

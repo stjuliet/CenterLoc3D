@@ -169,7 +169,7 @@ if __name__ == "__main__":
     pretrain = True
 
     # 指定backbone
-    backbone = "hourglass"
+    backbone = "resnet50"
 
     # 是否使用Cuda
     Cuda = True
@@ -178,13 +178,20 @@ if __name__ == "__main__":
     backbone_resnet_index = {"resnet18": 0, "resnet34": 1, "resnet50": 2, "resnet101": 3, "resnet152": 4}
     backbone_efficientnet_index = {"efficientnetb0": 0, "efficientnetb1": 1, "efficientnetb2": 2,
                      "efficientnetb3": 3, "efficientnetb4": 4, "efficientnetb5": 5, "efficientnetb6": 6, "efficientnetb7": 7}
+    
+    # 根据模型设置batch_size
+    batch_size_dict = {"resnet":[16, 8], "efficientnet":[8, 4], "hourglass":[2, 1]}
+
 
     if backbone[:-2] == "resnet":
         model = KeyPointDetection(model_name=backbone[:-2], model_index=backbone_resnet_index[backbone], num_classes=num_classes, pretrained_weights=pretrain)
+        batch_size_list = batch_size_dict[backbone[:-2]]
     if backbone[:-2] == "efficientnet":
         model = KeyPointDetection(model_name=backbone[:-2], model_index=backbone_efficientnet_index[backbone], num_classes=num_classes, pretrained_weights=pretrain)
+        batch_size_list = batch_size_dict[backbone[:-2]]
     if backbone == "hourglass":
         model = HourglassNet(Bottleneck, num_stacks=8, num_blocks=1, num_classes=num_classes)
+        batch_size_list = batch_size_dict[backbone]
         if pretrain:  # 额外加载hourglass预训练模型
             model_path = "model_data/hourglass-s8b1-best.pth.tar"
             print('Loading pretrained weights into state dict...')
@@ -213,7 +220,8 @@ if __name__ == "__main__":
 
     # 设置早停
     patience = 7  # 当验证集损失在连续7个epoch训练周期中都没有得到降低时，停止模型训练，以防止模型过拟合
-    early_stopping = EarlyStopping(patience, verbose=True)
+    best_model_path = "logs/%s-best-checkpoint.pth" % backbone
+    early_stopping = EarlyStopping(patience=patience, verbose=True, path=best_model_path)
 
     if Cuda:
         net = torch.nn.DataParallel(model)
@@ -254,10 +262,11 @@ if __name__ == "__main__":
     #   Epoch总训练世代
     #   提示OOM或者显存不足请调小Batch_size
 
+
     if True:
         # 超参数设置
         lr = 1e-3
-        Batch_size = 2
+        Batch_size = batch_size_list[0]
         Init_Epoch = 0
         Freeze_Epoch = 60
         
@@ -363,7 +372,7 @@ if __name__ == "__main__":
     if True:
         # 超参数设置
         lr = 1e-4
-        Batch_size = 1
+        Batch_size = batch_size_list[1]
         Freeze_Epoch = 60
         Unfreeze_Epoch = 120
 
@@ -393,4 +402,3 @@ if __name__ == "__main__":
                 print("Early stopping")
                 # 结束模型训练
                 break
-

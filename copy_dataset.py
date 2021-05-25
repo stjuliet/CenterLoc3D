@@ -25,4 +25,4 @@ for single_dataset_path_list in dataset_path_list:
             # copy img
             shutil.copy(img_raw_path, img_new_path)
 
-print("finish copy!")
+print("finish copy imgs and annotations!")

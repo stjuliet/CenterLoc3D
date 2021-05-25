@@ -22,10 +22,10 @@ for xml in temp_xml:
         total_xml.append(xml)
 
 num = len(total_xml)
-list = range(num)
+list_n = range(num)
 tv = int(num*trainval_percent)
 tr = int(tv*train_percent)
-trainval = random.sample(list, tv)
+trainval = random.sample(list_n, tv)
 train = random.sample(trainval, tr)
 
 print("train and val size", tv)
@@ -35,7 +35,7 @@ ftest = open(os.path.join(saveBasePath, "test.txt"), "w")
 ftrain = open(os.path.join(saveBasePath, "train.txt"), "w")
 fval = open(os.path.join(saveBasePath, "val.txt"), "w")
 
-for i in list:
+for i in list_n:
     name = total_xml[i][:-4] + "\n"
     if i in trainval:
         ftrainval.write(name)
