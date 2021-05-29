@@ -20,7 +20,7 @@ from PIL import Image, ImageDraw
 
 from fpn import KeyPointDetection
 from hourglass_official import HourglassNet, Bottleneck
-from loss import focal_loss, reg_l1_loss, reproject_l1_loss
+from loss import focal_loss, reg_l1_loss, reproject_l1_loss, reg_iou_loss
 from dataloader import Bbox3dDatasets, bbox3d_dataset_collate
 
 
@@ -56,6 +56,7 @@ def fit_one_epoch(net, backbone, epoch, epoch_size, epoch_size_val, gen, genval,
     """
     global train_tensorboard_step, val_tensorboard_step
     total_cls_loss, total_center_off_loss, total_vertex_loss, total_size_loss, total_reproj_loss, total_loss = 0, 0, 0, 0, 0, 0
+    total_iou_loss, total_giou_loss = 0, 0
     total_train_loss = 0
     val_loss = 0
 
@@ -80,6 +81,7 @@ def fit_one_epoch(net, backbone, epoch, epoch_size, epoch_size_val, gen, genval,
             vertex_loss = 0.1*reg_l1_loss(pred_vertex, batch_vertex_regs, batch_center_masks, index = 16)
             size_loss = 0.1*reg_l1_loss(pred_size, batch_size_regs, batch_center_masks, index = 3)
             reproj_loss = 0.1*reproject_l1_loss(pred_vertex, batch_calib_matrixs, pred_size, batch_center_masks, batch_raw_box_base_points, 16, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
+            # giou_loss = reg_iou_loss(pred_vertex, batch_vertex_regs, batch_center_masks, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
             
             loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss
 
@@ -89,6 +91,7 @@ def fit_one_epoch(net, backbone, epoch, epoch_size, epoch_size_val, gen, genval,
             total_vertex_loss += vertex_loss.item()
             total_size_loss += size_loss.item()
             total_reproj_loss += reproj_loss.item()
+            # total_giou_loss += giou_loss.item()
 
             loss.backward()
             optimizer.step()
@@ -130,7 +133,8 @@ def fit_one_epoch(net, backbone, epoch, epoch_size, epoch_size_val, gen, genval,
                 vertex_loss = 0.1*reg_l1_loss(pred_vertex, batch_vertex_regs, batch_center_masks, index = 16)
                 size_loss = 0.1*reg_l1_loss(pred_size, batch_size_regs, batch_center_masks, index = 3)
                 reproj_loss = 0.1*reproject_l1_loss(pred_vertex, batch_calib_matrixs, pred_size, batch_center_masks, batch_raw_box_base_points, 16, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
-                
+                # giou_loss = reg_iou_loss(pred_vertex, batch_vertex_regs, batch_center_masks, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
+
                 loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss
 
                 val_loss += loss.item()

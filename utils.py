@@ -87,6 +87,41 @@ def iou(b1, b2):
     iou = inter_area/np.maximum((area_b1+area_b2-inter_area),1e-6)
     return iou
 
+def basic_iou(bbox_p, bbox_g):
+    # 计算预测框面积
+    area_p = abs(bbox_p[2] - bbox_p[0]) * abs(bbox_p[3] - bbox_p[1])
+    # 计算真实框面积
+    area_g = abs(bbox_g[2] - bbox_g[0]) * abs(bbox_g[3] - bbox_g[1])
+
+    # 计算预测框和真实框的交集面积
+    x_min_inter = np.maximum(bbox_p[0], bbox_g[0])
+    y_min_inter = np.maximum(bbox_p[1], bbox_g[1])
+    x_max_inter = np.minimum(bbox_p[2], bbox_g[2])
+    y_max_inter = np.minimum(bbox_p[3], bbox_g[3])
+    intersection = np.maximum(abs(x_max_inter - x_min_inter), 0) * np.maximum(abs(y_max_inter - y_min_inter), 0)
+    
+    # 计算预测框和真实框的并集面积
+    union = area_p + area_g - intersection
+
+    # 计算预测框和真实框并集的外接矩形
+    x_min_union = np.minimum(bbox_p[0], bbox_g[0])
+    y_min_union = np.minimum(bbox_p[1], bbox_g[1])
+    x_max_union = np.maximum(bbox_p[2], bbox_g[2])
+    y_max_union = np.maximum(bbox_p[3], bbox_g[3])
+    external_rectangle = np.maximum(abs(x_max_union - x_min_union), 0) * np.maximum(abs(y_max_union - y_min_union), 0)
+
+    # 计算iou
+    iou = intersection / union
+    # iou loss
+    iou_loss = 1.0 - iou
+    # 计算giou
+    giou = iou - ((external_rectangle - union) / external_rectangle)
+    # giou loss
+    giou_loss = 1.0 - giou
+
+    return iou, giou
+
+
 
 def basic_3diou(b1, b2):
     """
