@@ -1,7 +1,7 @@
 # multi loss
 import torch
 import torch.nn.functional as F
-from utils import cal_pred_2dvertex, basic_iou
+from utils import cal_pred_2dvertex, basic_iou, basic_giou, basic_ciou
 import numpy as np
 
 
@@ -68,10 +68,12 @@ def reproject_l1_loss(pred_vertex, calib_matrix, pred_box_size, mask, base_point
     batch_size = pred_vertex.shape[0]
     batch_calc_vertex = []
     calc_vertex = np.zeros((featmap_h, featmap_w, 16), dtype=np.float32)
+    pred_vertex_new = torch.zeros_like(pred_vertex)
+
     for b in range(batch_size):
         image_h, image_w = raw_img_hs[b], raw_img_ws[b]
-        pred_vertex[b, :, :, 0:16:2] = pred_vertex[b, :, :, 0:16:2] * max(image_w, image_h) / featmap_h
-        pred_vertex[b, :, :, 1:16:2] = pred_vertex[b, :, :, 1:16:2] * max(image_w, image_h) / featmap_h - abs(image_w-image_h)/2.
+        pred_vertex_new[b, :, :, 0:16:2] = pred_vertex[b, :, :, 0:16:2] * max(image_w, image_h) / featmap_h
+        pred_vertex_new[b, :, :, 1:16:2] = pred_vertex[b, :, :, 1:16:2] * max(image_w, image_h) / featmap_h - abs(image_w-image_h)/2.
         calib_m = calib_matrix[b]
         t_list = np.where(mask[b].cpu() == 1.0)  # 遍历图像域中所有目标点
         for y, x in zip(t_list[0], t_list[1]):
@@ -86,7 +88,7 @@ def reproject_l1_loss(pred_vertex, calib_matrix, pred_box_size, mask, base_point
 
     expand_mask = torch.unsqueeze(mask,-1).repeat(1,1,1,index)  # 最后一个2对应维度数，需要变化
 
-    loss = F.l1_loss(pred_vertex * expand_mask, batch_calc_vertex * expand_mask, reduction='sum')
+    loss = F.l1_loss(pred_vertex_new * expand_mask, batch_calc_vertex * expand_mask, reduction='sum')
     loss = loss / (mask.sum() + 1e-4)
     return loss
 
@@ -120,34 +122,34 @@ def reg_iou_loss(pred_vertex, target, mask, perspective, fp_size, input_size, ra
     batch_gt_ious_loss = []
     calc_ious_loss = np.zeros((featmap_h, featmap_w), dtype=np.float32)
     gt_ious_loss = np.zeros((featmap_h, featmap_w), dtype=np.float32)
+    pred_vertex_new = torch.zeros_like(pred_vertex)
+    target_new = torch.zeros_like(target)
 
     for b in range(batch_size):
         image_h, image_w = raw_img_hs[b], raw_img_ws[b]
-        pred_vertex[b, :, :, 0:16:2] = pred_vertex[b, :, :, 0:16:2] * max(image_w, image_h) / featmap_h
-        pred_vertex[b, :, :, 1:16:2] = pred_vertex[b, :, :, 1:16:2] * max(image_w, image_h) / featmap_h - abs(image_w-image_h)/2.
+        pred_vertex_new[b, :, :, 0:16:2] = pred_vertex[b, :, :, 0:16:2] * max(image_w, image_h) / featmap_h
+        pred_vertex_new[b, :, :, 1:16:2] = pred_vertex[b, :, :, 1:16:2] * max(image_w, image_h) / featmap_h - abs(image_w-image_h)/2.
 
-        target[b, :, :, 0:16:2] = target[b, :, :, 0:16:2] * max(image_w, image_h) / featmap_h
-        target[b, :, :, 1:16:2] = target[b, :, :, 1:16:2] * max(image_w, image_h) / featmap_h - abs(image_w-image_h)/2.
+        target_new[b, :, :, 0:16:2] = target[b, :, :, 0:16:2] * max(image_w, image_h) / featmap_h
+        target_new[b, :, :, 1:16:2] = target[b, :, :, 1:16:2] * max(image_w, image_h) / featmap_h - abs(image_w-image_h)/2.
 
         t_list = np.where(mask[b].cpu() == 1.0)  # 遍历图像域中所有目标点
         for y, x in zip(t_list[0], t_list[1]):
             pers = perspective[b, y, x]
             if pers == 1:   # right view
-                bbox = np.array([pred_vertex[b,y,x,14], pred_vertex[b,y,x,15], pred_vertex[b,y,x,2], pred_vertex[b,y,x,3]], dtype=np.float32)
-                bbox_gt = np.array([target[b,y,x,14], target[b,y,x,15], target[b,y,x,2], target[b,y,x,3]], dtype=np.float32)
+                bbox = np.array([pred_vertex_new[b,y,x,14], pred_vertex_new[b,y,x,15], pred_vertex_new[b,y,x,2], pred_vertex_new[b,y,x,3]], dtype=np.float32)
+                bbox_gt = np.array([target_new[b,y,x,14], target_new[b,y,x,15], target_new[b,y,x,2], target_new[b,y,x,3]], dtype=np.float32)
             else:   # left view
-                bbox = np.array([pred_vertex[b,y,x,2], pred_vertex[b,y,x,3], pred_vertex[b,y,x,14], pred_vertex[b,y,x,15]], dtype=np.float32)
-                bbox_gt = np.array([target[b,y,x,2], target[b,y,x,3], target[b,y,x,14], target[b,y,x,15]], dtype=np.float32)
-            # 判断bbox_p中是否为负数
-            # 且是否左上角点坐标小于右下角点
-            if (image_w >= bbox[0] > 0 and image_h >= bbox[1] > 0 and image_w >= bbox[2] > 0 and image_h >= bbox[3] > 0) and \
-                (bbox[0] < bbox[2]) and (bbox[1] < bbox[3]):
-                iou, giou = basic_iou(bbox, bbox_gt)
-                print(1.0 - giou)
-                calc_ious_loss[y, x] = 1.0 - giou
-            else:
-                iou, giou = 0.0, -1.0
-                calc_ious_loss[y, x] = 1.0 - giou
+                bbox = np.array([pred_vertex_new[b,y,x,2], pred_vertex_new[b,y,x,3], pred_vertex_new[b,y,x,14], pred_vertex_new[b,y,x,15]], dtype=np.float32)
+                bbox_gt = np.array([target_new[b,y,x,2], target_new[b,y,x,3], target_new[b,y,x,14], target_new[b,y,x,15]], dtype=np.float32)
+            # # 判断bbox_p中是否为负数
+            # # 且是否左上角点坐标小于右下角点
+            # if (bbox[0] > 0 and bbox[1] > 0 and bbox[2] > 0 and bbox[3] > 0) and \
+            #     (bbox[0] < bbox[2]) and (bbox[1] < bbox[3]):
+            ciou = basic_ciou(bbox, bbox_gt)
+            calc_ious_loss[y, x] = 1.0 - ciou
+            # else:
+            #     calc_ious_loss[y, x] = 1e11
 
         batch_calc_ious_loss.append(calc_ious_loss)
         batch_gt_ious_loss.append(gt_ious_loss)

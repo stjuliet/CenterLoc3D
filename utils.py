@@ -111,15 +111,87 @@ def basic_iou(bbox_p, bbox_g):
     external_rectangle = np.maximum(abs(x_max_union - x_min_union), 0) * np.maximum(abs(y_max_union - y_min_union), 0)
 
     # 计算iou
-    iou = intersection / union
-    # iou loss
-    iou_loss = 1.0 - iou
-    # 计算giou
-    giou = iou - ((external_rectangle - union) / external_rectangle)
-    # giou loss
-    giou_loss = 1.0 - giou
+    iou = intersection / np.clip(union, a_min=1e-6)
 
-    return iou, giou
+    return iou
+
+def basic_giou(bbox_p, bbox_g):
+    # 计算预测框面积
+    area_p = abs(bbox_p[2] - bbox_p[0]) * abs(bbox_p[3] - bbox_p[1])
+    # 计算真实框面积
+    area_g = abs(bbox_g[2] - bbox_g[0]) * abs(bbox_g[3] - bbox_g[1])
+
+    # 计算预测框和真实框的交集面积
+    x_min_inter = np.maximum(bbox_p[0], bbox_g[0])
+    y_min_inter = np.maximum(bbox_p[1], bbox_g[1])
+    x_max_inter = np.minimum(bbox_p[2], bbox_g[2])
+    y_max_inter = np.minimum(bbox_p[3], bbox_g[3])
+    intersection = np.maximum(abs(x_max_inter - x_min_inter), 0) * np.maximum(abs(y_max_inter - y_min_inter), 0)
+    
+    # 计算预测框和真实框的并集面积
+    union = area_p + area_g - intersection
+
+    # 计算预测框和真实框并集的外接矩形
+    x_min_union = np.minimum(bbox_p[0], bbox_g[0])
+    y_min_union = np.minimum(bbox_p[1], bbox_g[1])
+    x_max_union = np.maximum(bbox_p[2], bbox_g[2])
+    y_max_union = np.maximum(bbox_p[3], bbox_g[3])
+    external_rectangle = np.maximum(abs(x_max_union - x_min_union), 0) * np.maximum(abs(y_max_union - y_min_union), 0)
+
+    # 计算iou
+    iou = intersection / np.maximum(union, 1e-6)
+
+    # 计算giou
+    giou = iou - (external_rectangle - union) / external_rectangle
+
+    return giou
+
+def basic_ciou(bbox_p, bbox_g):
+    # 计算预测框面积
+    area_p = abs(bbox_p[2] - bbox_p[0]) * abs(bbox_p[3] - bbox_p[1])
+    # 计算真实框面积
+    area_g = abs(bbox_g[2] - bbox_g[0]) * abs(bbox_g[3] - bbox_g[1])
+
+    bbox_h_p = bbox_p[3] - bbox_p[1]
+    bbox_w_p = bbox_p[2] - bbox_p[0]
+    bbox_h_g = bbox_g[3] - bbox_g[1]
+    bbox_w_g = bbox_g[2] - bbox_g[0]
+
+    center_p = np.array([(bbox_p[0]+bbox_p[2])/2., (bbox_p[1]+bbox_p[3])/2.], dtype=np.float32)
+    center_g = np.array([(bbox_g[0]+bbox_g[2])/2., (bbox_g[1]+bbox_g[3])/2.], dtype=np.float32)
+
+    # 计算中心点距离
+    box_center_dis = (center_p[0] - center_g[0])**2 + (center_p[1] - center_g[1])**2
+
+    # 计算预测框和真实框的交集面积
+    x_min_inter = np.maximum(bbox_p[0], bbox_g[0])
+    y_min_inter = np.maximum(bbox_p[1], bbox_g[1])
+    x_max_inter = np.minimum(bbox_p[2], bbox_g[2])
+    y_max_inter = np.minimum(bbox_p[3], bbox_g[3])
+    intersection = np.maximum(abs(x_max_inter - x_min_inter), 0) * np.maximum(abs(y_max_inter - y_min_inter), 0)
+    
+    # 计算预测框和真实框的并集面积
+    union = area_p + area_g - intersection
+
+    # 计算预测框和真实框并集的外接矩形的对角线距离
+    x_min_union = np.minimum(bbox_p[0], bbox_g[0])
+    y_min_union = np.minimum(bbox_p[1], bbox_g[1])
+    x_max_union = np.maximum(bbox_p[2], bbox_g[2])
+    y_max_union = np.maximum(bbox_p[3], bbox_g[3])
+
+    external_dis = (x_max_union - x_min_union)**2 + (y_max_union - y_min_union)**2
+
+    # 计算iou
+    iou = intersection / np.maximum(union, 1e-6)
+
+    # 计算box长宽比惩罚项
+    v = (4 / math.pi**2) * (math.atan(bbox_w_g/bbox_h_g) - math.atan(bbox_w_p/bbox_h_p))**2
+    alpha = v / np.maximum((1 - iou + v), 1e-6)
+    
+    # 计算ciou
+    ciou = iou - box_center_dis / np.maximum(external_dis, 1e-6) - v*alpha
+
+    return ciou
 
 
 
