@@ -40,7 +40,7 @@ def get_lr(optimizer):
     for param_group in optimizer.param_groups:
         return param_group['lr']
 
-def fit_one_epoch(net, backbone, epoch, epoch_size, epoch_size_val, gen, genval, Epoch, cuda, writer):
+def fit_one_epoch(net, backbone, epoch, epoch_size, epoch_size_val, gen, genval, Epoch, iou_type, cuda, writer):
     """
     func: 训练一个epoch
     net: 模型
@@ -55,8 +55,8 @@ def fit_one_epoch(net, backbone, epoch, epoch_size, epoch_size_val, gen, genval,
     writer: tensorboard绘制loss曲线图
     """
     global train_tensorboard_step, val_tensorboard_step
-    total_cls_loss, total_center_off_loss, total_vertex_loss, total_size_loss, total_reproj_loss, total_loss = 0, 0, 0, 0, 0, 0
-    total_iou_loss, total_ciou_loss = 0, 0
+    total_cls_loss, total_center_off_loss, total_vertex_loss, total_size_loss, total_reproj_loss = 0, 0, 0, 0, 0
+    total_iou_loss = 0
     total_train_loss = 0
     val_loss = 0
 
@@ -81,9 +81,17 @@ def fit_one_epoch(net, backbone, epoch, epoch_size, epoch_size_val, gen, genval,
             vertex_loss = 0.1*reg_l1_loss(pred_vertex, batch_vertex_regs, batch_center_masks, index = 16)
             size_loss = 0.1*reg_l1_loss(pred_size, batch_size_regs, batch_center_masks, index = 3)
             reproj_loss = 0.1*reproject_l1_loss(pred_vertex, batch_calib_matrixs, pred_size, batch_center_masks, batch_raw_box_base_points, 16, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
-            ciou_loss = torch.log(reg_iou_loss(pred_vertex, batch_vertex_regs, batch_center_masks, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws))
             
-            loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss + ciou_loss
+            if iou_type:
+                iou_loss = reg_iou_loss(iou_type, pred_vertex, batch_vertex_regs, batch_center_masks, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
+                if iou_loss > 1.0:
+                    iou_loss = torch.log(iou_loss)
+                else:
+                    pass
+                loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss + iou_loss
+            else:
+                iou_loss = 0.0
+                loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss
 
             total_train_loss += loss.item()
             total_cls_loss += cls_loss.item()
@@ -91,7 +99,7 @@ def fit_one_epoch(net, backbone, epoch, epoch_size, epoch_size_val, gen, genval,
             total_vertex_loss += vertex_loss.item()
             total_size_loss += size_loss.item()
             total_reproj_loss += reproj_loss.item()
-            total_ciou_loss += ciou_loss.item()
+            total_iou_loss += iou_loss.item()
 
             loss.backward()
             optimizer.step()
@@ -100,14 +108,14 @@ def fit_one_epoch(net, backbone, epoch, epoch_size, epoch_size_val, gen, genval,
             writer.add_scalar('Train_loss', loss, train_tensorboard_step)
             train_tensorboard_step += 1
 
-            pbar.set_postfix(**{'loss'  : total_train_loss / (iteration + 1),
-                                'cls_loss'  : total_cls_loss / (iteration + 1),
-                                'center_loss'  : total_center_off_loss / (iteration + 1),
-                                'vertex_loss'  : total_vertex_loss / (iteration + 1),
-                                'size_loss'  : total_size_loss / (iteration + 1),
-                                'reproj_loss'  : total_reproj_loss / (iteration + 1),
-                                'ciou_loss'    : total_ciou_loss / (iteration + 1),
-                                'lr'            : get_lr(optimizer)})
+            pbar.set_postfix(**{'loss'                  : total_train_loss / (iteration + 1),
+                                'cls_loss'              : total_cls_loss / (iteration + 1),
+                                'center_loss'           : total_center_off_loss / (iteration + 1),
+                                'vertex_loss'           : total_vertex_loss / (iteration + 1),
+                                'size_loss'             : total_size_loss / (iteration + 1),
+                                'reproj_loss'           : total_reproj_loss / (iteration + 1),
+                                '%s_loss' % iou_type    : total_iou_loss / (iteration + 1),
+                                'lr'                    : get_lr(optimizer)})
             pbar.update(1)
 
     # 将loss写入tensorboard，下面注释的是每个世代保存一次
@@ -134,9 +142,17 @@ def fit_one_epoch(net, backbone, epoch, epoch_size, epoch_size_val, gen, genval,
                 vertex_loss = 0.1*reg_l1_loss(pred_vertex, batch_vertex_regs, batch_center_masks, index = 16)
                 size_loss = 0.1*reg_l1_loss(pred_size, batch_size_regs, batch_center_masks, index = 3)
                 reproj_loss = 0.1*reproject_l1_loss(pred_vertex, batch_calib_matrixs, pred_size, batch_center_masks, batch_raw_box_base_points, 16, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
-                ciou_loss = torch.log(reg_iou_loss(pred_vertex, batch_vertex_regs, batch_center_masks, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws))
-
-                loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss + ciou_loss
+                
+                if iou_type:
+                    iou_loss = reg_iou_loss(iou_type, pred_vertex, batch_vertex_regs, batch_center_masks, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
+                    if iou_loss > 1.0:
+                        iou_loss = torch.log(iou_loss)
+                    else:
+                        pass
+                    loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss + iou_loss
+                else:
+                    iou_loss = 0.0
+                    loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss
 
                 val_loss += loss.item()
 
@@ -157,8 +173,10 @@ def fit_one_epoch(net, backbone, epoch, epoch_size, epoch_size_val, gen, genval,
     # 保存时可记录backbone名称，方便区分
     torch.save(model.state_dict(), 'logs/%s-Epoch%d-Total_train_Loss%.4f-Val_Loss%.4f.pth'%(backbone,(epoch+1),total_train_loss/(epoch_size+1),val_loss/(epoch_size_val+1)))
     return val_loss/(epoch_size_val+1)
-    
+
+
 if __name__ == "__main__":
+
     # 输入图片的大小
     input_shape = (512, 512, 3)
     output_shape = (128, 128)
@@ -173,17 +191,26 @@ if __name__ == "__main__":
     # 是否使用仅backbone的预训练权重
     pretrain = True
 
-    # 指定backbone
-    backbone = "resnet50"
-
     # 是否使用Cuda
     Cuda = True
+
+    # 是否使用iou loss, 不使用设置为None, 
+    # 使用则从{iou, giou, diou, ciou}中选取任意一个
+    iou_loss_type = "ciou"
+    if iou_loss_type:
+        assert iou_loss_type in ["iou", "giou", "diou", "ciou"]
 
     # 获取模型
     backbone_resnet_index = {"resnet18": 0, "resnet34": 1, "resnet50": 2, "resnet101": 3, "resnet152": 4}
     backbone_efficientnet_index = {"efficientnetb0": 0, "efficientnetb1": 1, "efficientnetb2": 2,
                      "efficientnetb3": 3, "efficientnetb4": 4, "efficientnetb5": 5, "efficientnetb6": 6, "efficientnetb7": 7}
     
+    # 指定backbone
+    backbone = "resnet50"
+    list_backbones = list(backbone_resnet_index.keys()) + list(backbone_efficientnet_index.keys()) + ["hourglass"]
+    assert backbone in list_backbones
+    
+
     # 根据模型设置batch_size
     batch_size_dict = {"resnet":[16, 8], "efficientnet":[8, 4], "hourglass":[2, 1]}
 
@@ -371,7 +398,7 @@ if __name__ == "__main__":
 
 
         for epoch in range(Init_Epoch,Freeze_Epoch):
-            val_loss = fit_one_epoch(net,backbone,epoch,epoch_size,epoch_size_val,gen,gen_val,Freeze_Epoch,Cuda, writer)
+            val_loss = fit_one_epoch(net,backbone,epoch,epoch_size,epoch_size_val,gen,gen_val,Freeze_Epoch,iou_loss_type,Cuda, writer)
             lr_scheduler.step(val_loss)
 
     if True:
@@ -398,7 +425,7 @@ if __name__ == "__main__":
         model.unfreeze_backbone()
 
         for epoch in range(Freeze_Epoch,Unfreeze_Epoch):
-            val_loss = fit_one_epoch(net,backbone,epoch,epoch_size,epoch_size_val,gen,gen_val,Unfreeze_Epoch,Cuda, writer)
+            val_loss = fit_one_epoch(net,backbone,epoch,epoch_size,epoch_size_val,gen,gen_val,Unfreeze_Epoch,iou_loss_type,Cuda, writer)
             lr_scheduler.step(val_loss)
             
             early_stopping(val_loss, net)
