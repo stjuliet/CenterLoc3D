@@ -184,10 +184,14 @@ class Bbox3dPred(object):
             try:
                 if self.nms:
                     for i in range(len(outputs)):
-                        empty_box.append([outputs[i][16], outputs[i][17], outputs[i][4], outputs[i][5], outputs[i][22]])
+                        x1, y1, x7, y7, cls_id = outputs[i][4], outputs[i][5], outputs[i][16], outputs[i][17], outputs[i][22]
+                        # 区分车辆视角进行预测
+                        if x7 < x1:   # 1、right  x7<x1
+                            empty_box.append([x7, y7, x1, y1, cls_id])
+                        else:  # 2、left   x7>=x1
+                            empty_box.append([x1, y7, x7, y1, cls_id])
                     np_det_results = np.array(empty_box, dtype=np.float32)
                     outputs = np.array(nms(np_det_results, self.nms_threhold))
-                    # 后续添加3d box iou 计算公式
             except:
                 pass
             

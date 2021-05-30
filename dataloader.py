@@ -46,7 +46,7 @@ class Bbox3dDatasets(Dataset):
         return new_image
 
     def get_random_data(self, annotation_line, input_shape, jitter=.3, hue=.1, sat=1.5, val=1.5, augment=True):
-        '''实时数据增强的随机预处理'''
+        """实时数据增强的随机预处理"""
         line = annotation_line.split()
         # line[0]:image, line[1]:calib_file_path, line[2:]:box_info
         image = Image.open(line[0])  # 原始图像

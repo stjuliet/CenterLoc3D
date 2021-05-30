@@ -262,12 +262,12 @@ def basic_3diou(b1, b2):
     z_overlap = max_z - min_z
 
     if x_overlap > 0 and y_overlap > 0 and z_overlap > 0:
-        overlap_volumn = x_overlap*y_overlap*z_overlap
+        overlap_volumn = x_overlap * y_overlap * z_overlap
         b1_volumn = abs(b1[3]-b1[0])*(b1[10]-b1[1])*(b1[14]-b1[2])
         b2_volumn = abs(b2[3]-b2[0])*(b2[10]-b2[1])*(b2[14]-b2[2])
 
         union_volumn = b1_volumn + b2_volumn - overlap_volumn
-        iou = overlap_volumn / union_volumn
+        iou = overlap_volumn / np.maximum(union_volumn, 1e-6)
     else:
         iou = 0
 
@@ -374,7 +374,7 @@ def dashLine(img, p1, p2, color, thickness, interval):
         if p1[1] > p2[1]:
             p1, p2 = p2, p1
     len = math.sqrt(math.pow((p1[0] - p2[0]), 2) + math.pow((p1[1] - p2[1]), 2))
-    k = (float)(p2[1] - p1[1]) / (float)(p2[0] - p1[0] + 0.000000000001)
+    k = (float)(p2[1] - p1[1]) / (float)(p2[0] - p1[0] + 1e-6)
     seg = (int)(len / (float)(2 * interval))
     dev_x = 2 * interval / math.sqrt(1 + k * k)
     dev_y = k * dev_x   # 短直线向量
