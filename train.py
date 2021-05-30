@@ -40,7 +40,7 @@ def get_lr(optimizer):
     for param_group in optimizer.param_groups:
         return param_group['lr']
 
-def fit_one_epoch(net, backbone, epoch, epoch_size, epoch_size_val, gen, genval, Epoch, iou_type, cuda, writer):
+def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, gen, genval, Epoch, iou_type, cuda, writer):
     """
     func: 训练一个epoch
     net: 模型
@@ -171,8 +171,63 @@ def fit_one_epoch(net, backbone, epoch, epoch_size, epoch_size_val, gen, genval,
 
     print('Saving state, iter:', str(epoch+1))
     # 保存时可记录backbone名称，方便区分
-    torch.save(model.state_dict(), 'logs/%s-Epoch%d-Total_train_Loss%.4f-Val_Loss%.4f.pth'%(backbone,(epoch+1),total_train_loss/(epoch_size+1),val_loss/(epoch_size_val+1)))
+
+    # 保存模型参数、优化器参数、epoch信息等至一个全局字典中!!
+    state = {"epoch": epoch + 1, 
+             "state_dict": model.state_dict(), 
+             "optimizer": optimizer.state_dict()}
+
+    torch.save(state, 'logs/%s-Epoch%d-Total_train_Loss%.4f-Val_Loss%.4f.pth'%(backbone,(epoch+1),total_train_loss/(epoch_size+1),val_loss/(epoch_size_val+1)))
     return val_loss/(epoch_size_val+1)
+
+
+def train_from_checkpoint(model_path, model):
+    """ 从断点处接续训练 """
+    checkpoint = torch.load(model_path)
+
+    pretrained_model_dict = checkpoint["state_dict"]
+    optimizer_dict = checkpoint["optimizer"]
+    start_epoch = checkpoint["epoch"]
+
+    model_dict = model.state_dict()
+    update_model_dict = {k: v for k, v in pretrained_model_dict.items() if np.shape(model_dict[k]) ==  np.shape(v)}
+    model_dict.update(update_model_dict)
+    model.load_state_dict(model_dict)
+
+    optimizer = optim.Adam(model.parameters())
+    optimizer.load_state_dict(optimizer_dict)
+
+    print('checkpoint loaded!')
+
+    Batch_size = batch_size_list[1]
+    Freeze_Epoch = start_epoch
+    Unfreeze_Epoch = start_epoch + 60
+
+    lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=3, verbose=True)
+
+    train_dataset = Bbox3dDatasets(lines[:num_train], input_shape, num_classes, True)
+    val_dataset = Bbox3dDatasets(lines[num_train:], input_shape, num_classes, False)
+    gen = DataLoader(train_dataset, batch_size=Batch_size, num_workers=8, pin_memory=True,
+                            drop_last=True, collate_fn=bbox3d_dataset_collate)
+    gen_val = DataLoader(val_dataset, batch_size=Batch_size, num_workers=8,pin_memory=True, 
+                            drop_last=True, collate_fn=bbox3d_dataset_collate)
+
+    epoch_size = num_train//Batch_size
+    epoch_size_val = num_val//Batch_size
+
+    # 解冻后训练
+    model.unfreeze_backbone()
+
+    for epoch in range(Freeze_Epoch,Unfreeze_Epoch):
+        val_loss = fit_one_epoch(net,backbone,optimizer,epoch,epoch_size,epoch_size_val,gen,gen_val,Unfreeze_Epoch,iou_loss_type,Cuda, writer)
+        lr_scheduler.step(val_loss)
+        
+        early_stopping(val_loss, net)
+        # 若满足 early stopping 要求
+        if early_stopping.early_stop:
+            print("Early stopping")
+            # 结束模型训练
+            break
 
 
 if __name__ == "__main__":
@@ -193,6 +248,10 @@ if __name__ == "__main__":
 
     # 是否使用Cuda
     Cuda = True
+
+    # 是否断点续训练
+    train_cont = True
+    train_cont_model_path = "logs/resnet50-Epoch1-Total_train_Loss449.9977-Val_Loss157.0929.pth"
 
     # 是否使用iou loss, 不使用设置为None, 
     # 使用则从{iou, giou, diou, ciou}中选取任意一个
@@ -239,6 +298,7 @@ if __name__ == "__main__":
             print('Finished!')
 
     # 断点续训练
+    # 1、只包含模型参数
     # model_path = "logs\Epoch120-Total_train_Loss2.7936-Val_Loss4.7216.pth"
     # print('Loading weights into state dict...')
     # model_dict = model.state_dict()
@@ -247,6 +307,7 @@ if __name__ == "__main__":
     # model_dict.update(pretrained_dict)
     # model.load_state_dict(model_dict)
     # print('Finished!')
+
 
     net = model.train()
 
@@ -294,143 +355,144 @@ if __name__ == "__main__":
     #   Epoch总训练世代
     #   提示OOM或者显存不足请调小Batch_size
 
-
-    if True:
-        # 超参数设置
-        lr = 1e-3
-        Batch_size = batch_size_list[0]
-        Init_Epoch = 0
-        Freeze_Epoch = 60
-        
-        optimizer = optim.Adam(net.parameters(),lr,weight_decay=5e-4)
-        lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=3, verbose=True)
-
-        train_dataset = Bbox3dDatasets(lines[:num_train], input_shape, num_classes, True)
-        val_dataset = Bbox3dDatasets(lines[num_train:], input_shape, num_classes, False)
-        gen = DataLoader(train_dataset, batch_size=Batch_size, num_workers=8, pin_memory=True,
-                                drop_last=True, collate_fn=bbox3d_dataset_collate)
-        gen_val = DataLoader(val_dataset, batch_size=Batch_size, num_workers=8,pin_memory=True,
-                                drop_last=True, collate_fn=bbox3d_dataset_collate)
-
-        epoch_size = num_train//Batch_size
-        epoch_size_val = num_val//Batch_size
-
-        # 冻结一定部分训练
-        model.freeze_backbone()
-
-        # # 开始训练前展示训练样本
-        # for step, data in enumerate(gen, start = 0):
-        #     # batch_center_reg: 中心点偏移量
-        #     img, calib_matrix, batch_hm, batch_center_reg, batch_vertex_reg, batch_size_reg, batch_center_mask, batch_box_perspective, batch_base_point, raw_img_w, raw_img_h = data
+    if train_cont:
+        train_from_checkpoint(train_cont_model_path, model)
+    else:
+        if True:
+            # 超参数设置
+            lr = 1e-3
+            Batch_size = batch_size_list[0]
+            Init_Epoch = 0
+            Freeze_Epoch = 60
             
-        #     for num in range(len(img)):
-        #         plt.figure()
-        #         raw_img = img[num] # numpy格式, BGR, CHW
-        #         raw_img = raw_img.transpose(1, 2, 0)  # CHW->HWC
-        #         raw_img = np.array((raw_img * std + mean) * 255.).astype(np.uint8)
-        #         raw_img = cv.cvtColor(raw_img, cv.COLOR_BGR2RGB)  # RGB
+            optimizer = optim.Adam(net.parameters(),lr,weight_decay=5e-4)
+            lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=3, verbose=True)
 
-        #         max_size=max(raw_img_w[num],raw_img_h[num])
-        #         minus_size=abs(raw_img_w[num]-raw_img_h[num])
+            train_dataset = Bbox3dDatasets(lines[:num_train], input_shape, num_classes, True)
+            val_dataset = Bbox3dDatasets(lines[num_train:], input_shape, num_classes, False)
+            gen = DataLoader(train_dataset, batch_size=Batch_size, num_workers=8, pin_memory=True,
+                                    drop_last=True, collate_fn=bbox3d_dataset_collate)
+            gen_val = DataLoader(val_dataset, batch_size=Batch_size, num_workers=8,pin_memory=True,
+                                    drop_last=True, collate_fn=bbox3d_dataset_collate)
 
-        #         pil_raw_img=Image.fromarray(raw_img).resize((max_size,max_size)) # 返回PIL格式带灰条原图
-        #         draw=ImageDraw.Draw(pil_raw_img)
+            epoch_size = num_train//Batch_size
+            epoch_size_val = num_val//Batch_size
 
-        #         # 绘制中心点
-        #         t_list = np.where(batch_center_mask[num] == 1.0)  # 遍历图像域中所有目标点
-        #         for y, x in zip(t_list[0], t_list[1]):
-        #             # 显示到带灰条原图上
-        #             center = ([x, y] + batch_center_reg[num, y, x]) * max_size // output_shape[0]
-        #             vertex = batch_vertex_reg[num, y, x] * max_size // output_shape[0]
+            # 冻结一定部分训练
+            model.freeze_backbone()
 
-        #             draw.ellipse([center[0], center[1], center[0]+5, center[1]+5], outline=(0, 0, 255), width = 1)
-        #             cls_id = np.argmax(batch_hm[num, y, x])
-        #             cls_name = class_names[cls_id]
-        #             draw.text([center[0], center[1]-10], cls_name, fill=(255, 0, 0))
+            # # 开始训练前展示训练样本
+            # for step, data in enumerate(gen, start = 0):
+            #     # batch_center_reg: 中心点偏移量
+            #     img, calib_matrix, batch_hm, batch_center_reg, batch_vertex_reg, batch_size_reg, batch_center_mask, batch_box_perspective, batch_base_point, raw_img_w, raw_img_h = data
+                
+            #     for num in range(len(img)):
+            #         plt.figure()
+            #         raw_img = img[num] # numpy格式, BGR, CHW
+            #         raw_img = raw_img.transpose(1, 2, 0)  # CHW->HWC
+            #         raw_img = np.array((raw_img * std + mean) * 255.).astype(np.uint8)
+            #         raw_img = cv.cvtColor(raw_img, cv.COLOR_BGR2RGB)  # RGB
 
-        #             # 宽度方向
-        #             # 0-1  2-3  4-5  6-7
-        #             draw.line([vertex[0], vertex[1], vertex[2], vertex[3]], fill=128, width=2)
-        #             draw.line([vertex[4], vertex[5], vertex[6], vertex[7]], fill=128, width=2)
-        #             draw.line([vertex[8], vertex[9], vertex[10], vertex[11]], fill=128, width=2)
-        #             draw.line([vertex[12], vertex[13], vertex[14], vertex[15]], fill=128, width=2)
+            #         max_size=max(raw_img_w[num],raw_img_h[num])
+            #         minus_size=abs(raw_img_w[num]-raw_img_h[num])
 
-        #             # 长度方向
-        #             # 0-3 1-2 4-7 5-6
-        #             draw.line([vertex[0], vertex[1], vertex[6], vertex[7]], fill=128, width=2)
-        #             draw.line([vertex[2], vertex[3], vertex[4], vertex[5]], fill=128, width=2)
-        #             draw.line([vertex[8], vertex[9], vertex[14], vertex[15]], fill=128, width=2)
-        #             draw.line([vertex[10], vertex[11], vertex[12], vertex[13]], fill=128, width=2)
+            #         pil_raw_img=Image.fromarray(raw_img).resize((max_size,max_size)) # 返回PIL格式带灰条原图
+            #         draw=ImageDraw.Draw(pil_raw_img)
 
-        #             # 高度方向
-        #             # 0-4 1-5 2-6 3-7
-        #             draw.line([vertex[0], vertex[1], vertex[8], vertex[9]], fill=128, width=2)
-        #             draw.line([vertex[2], vertex[3], vertex[10], vertex[11]], fill=128, width=2)
-        #             draw.line([vertex[4], vertex[5], vertex[12], vertex[13]], fill=128, width=2)
-        #             draw.line([vertex[6], vertex[7], vertex[14], vertex[15]], fill=128, width=2)
-        #         # del draw
+            #         # 绘制中心点
+            #         t_list = np.where(batch_center_mask[num] == 1.0)  # 遍历图像域中所有目标点
+            #         for y, x in zip(t_list[0], t_list[1]):
+            #             # 显示到带灰条原图上
+            #             center = ([x, y] + batch_center_reg[num, y, x]) * max_size // output_shape[0]
+            #             vertex = batch_vertex_reg[num, y, x] * max_size // output_shape[0]
 
-        #         plt.subplot(2,2,1)
-        #         plt.imshow(pil_raw_img)  # RGB
+            #             draw.ellipse([center[0], center[1], center[0]+5, center[1]+5], outline=(0, 0, 255), width = 1)
+            #             cls_id = np.argmax(batch_hm[num, y, x])
+            #             cls_name = class_names[cls_id]
+            #             draw.text([center[0], center[1]-10], cls_name, fill=(255, 0, 0))
 
-        #         # 绘制热力图
-        #         plt.subplot(2,2,2)
-        #         hotmaps = batch_hm[num][...,0]
-        #         print(hotmaps.shape)
-        #         heatmap = np.maximum(hotmaps, 0)
-        #         heatmap /= np.max(heatmap)
-        #         plt.imshow(heatmap)
+            #             # 宽度方向
+            #             # 0-1  2-3  4-5  6-7
+            #             draw.line([vertex[0], vertex[1], vertex[2], vertex[3]], fill=128, width=2)
+            #             draw.line([vertex[4], vertex[5], vertex[6], vertex[7]], fill=128, width=2)
+            #             draw.line([vertex[8], vertex[9], vertex[10], vertex[11]], fill=128, width=2)
+            #             draw.line([vertex[12], vertex[13], vertex[14], vertex[15]], fill=128, width=2)
 
-        #         # 将灰度图转换为伪彩色图
-        #         plt.subplot(2,2,3)
-        #         heatmap = cv.resize(heatmap, (512, 512))
-        #         heatmap = np.uint8(255 * heatmap)
-        #         heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
-        #         raw_img = cv.cvtColor(raw_img, cv.COLOR_RGB2BGR)
-        #         superimposed_img = heatmap * 0.4 + raw_img * 0.8  # BGR
+            #             # 长度方向
+            #             # 0-3 1-2 4-7 5-6
+            #             draw.line([vertex[0], vertex[1], vertex[6], vertex[7]], fill=128, width=2)
+            #             draw.line([vertex[2], vertex[3], vertex[4], vertex[5]], fill=128, width=2)
+            #             draw.line([vertex[8], vertex[9], vertex[14], vertex[15]], fill=128, width=2)
+            #             draw.line([vertex[10], vertex[11], vertex[12], vertex[13]], fill=128, width=2)
 
-        #         cv.imwrite("img/hot.jpg", superimposed_img)
-        #         superimposed_img = np.array(superimposed_img, dtype=np.uint8)
-        #         superimposed_img = cv.cvtColor(superimposed_img, cv.COLOR_BGR2RGB)
-        #         plt.imshow(superimposed_img)
+            #             # 高度方向
+            #             # 0-4 1-5 2-6 3-7
+            #             draw.line([vertex[0], vertex[1], vertex[8], vertex[9]], fill=128, width=2)
+            #             draw.line([vertex[2], vertex[3], vertex[10], vertex[11]], fill=128, width=2)
+            #             draw.line([vertex[4], vertex[5], vertex[12], vertex[13]], fill=128, width=2)
+            #             draw.line([vertex[6], vertex[7], vertex[14], vertex[15]], fill=128, width=2)
+            #         # del draw
 
-        #     plt.show()
+            #         plt.subplot(2,2,1)
+            #         plt.imshow(pil_raw_img)  # RGB
 
+            #         # 绘制热力图
+            #         plt.subplot(2,2,2)
+            #         hotmaps = batch_hm[num][...,0]
+            #         print(hotmaps.shape)
+            #         heatmap = np.maximum(hotmaps, 0)
+            #         heatmap /= np.max(heatmap)
+            #         plt.imshow(heatmap)
 
-        for epoch in range(Init_Epoch,Freeze_Epoch):
-            val_loss = fit_one_epoch(net,backbone,epoch,epoch_size,epoch_size_val,gen,gen_val,Freeze_Epoch,iou_loss_type,Cuda, writer)
-            lr_scheduler.step(val_loss)
+            #         # 将灰度图转换为伪彩色图
+            #         plt.subplot(2,2,3)
+            #         heatmap = cv.resize(heatmap, (512, 512))
+            #         heatmap = np.uint8(255 * heatmap)
+            #         heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
+            #         raw_img = cv.cvtColor(raw_img, cv.COLOR_RGB2BGR)
+            #         superimposed_img = heatmap * 0.4 + raw_img * 0.8  # BGR
 
-    if True:
-        # 超参数设置
-        lr = 1e-4
-        Batch_size = batch_size_list[1]
-        Freeze_Epoch = 60
-        Unfreeze_Epoch = 120
+            #         cv.imwrite("img/hot.jpg", superimposed_img)
+            #         superimposed_img = np.array(superimposed_img, dtype=np.uint8)
+            #         superimposed_img = cv.cvtColor(superimposed_img, cv.COLOR_BGR2RGB)
+            #         plt.imshow(superimposed_img)
 
-        optimizer = optim.Adam(net.parameters(),lr,weight_decay=5e-4)
-        lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=3, verbose=True)
+            #     plt.show()
 
-        train_dataset = Bbox3dDatasets(lines[:num_train], input_shape, num_classes, True)
-        val_dataset = Bbox3dDatasets(lines[num_train:], input_shape, num_classes, False)
-        gen = DataLoader(train_dataset, batch_size=Batch_size, num_workers=8, pin_memory=True,
-                                drop_last=True, collate_fn=bbox3d_dataset_collate)
-        gen_val = DataLoader(val_dataset, batch_size=Batch_size, num_workers=8,pin_memory=True, 
-                                drop_last=True, collate_fn=bbox3d_dataset_collate)
+            for epoch in range(Init_Epoch,Freeze_Epoch):
+                val_loss = fit_one_epoch(net,backbone,optimizer,epoch,epoch_size,epoch_size_val,gen,gen_val,Freeze_Epoch,iou_loss_type,Cuda, writer)
+                lr_scheduler.step(val_loss)
 
-        epoch_size = num_train//Batch_size
-        epoch_size_val = num_val//Batch_size
+        if True:
+            # 超参数设置
+            lr = 1e-4
+            Batch_size = batch_size_list[1]
+            Freeze_Epoch = 60
+            Unfreeze_Epoch = 120
 
-        # 解冻后训练
-        model.unfreeze_backbone()
+            optimizer = optim.Adam(net.parameters(),lr,weight_decay=5e-4)
+            lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=3, verbose=True)
 
-        for epoch in range(Freeze_Epoch,Unfreeze_Epoch):
-            val_loss = fit_one_epoch(net,backbone,epoch,epoch_size,epoch_size_val,gen,gen_val,Unfreeze_Epoch,iou_loss_type,Cuda, writer)
-            lr_scheduler.step(val_loss)
-            
-            early_stopping(val_loss, net)
-            # 若满足 early stopping 要求
-            if early_stopping.early_stop:
-                print("Early stopping")
-                # 结束模型训练
-                break
+            train_dataset = Bbox3dDatasets(lines[:num_train], input_shape, num_classes, True)
+            val_dataset = Bbox3dDatasets(lines[num_train:], input_shape, num_classes, False)
+            gen = DataLoader(train_dataset, batch_size=Batch_size, num_workers=8, pin_memory=True,
+                                    drop_last=True, collate_fn=bbox3d_dataset_collate)
+            gen_val = DataLoader(val_dataset, batch_size=Batch_size, num_workers=8,pin_memory=True, 
+                                    drop_last=True, collate_fn=bbox3d_dataset_collate)
+
+            epoch_size = num_train//Batch_size
+            epoch_size_val = num_val//Batch_size
+
+            # 解冻后训练
+            model.unfreeze_backbone()
+
+            for epoch in range(Freeze_Epoch,Unfreeze_Epoch):
+                val_loss = fit_one_epoch(net,backbone,optimizer,epoch,epoch_size,epoch_size_val,gen,gen_val,Unfreeze_Epoch,iou_loss_type,Cuda, writer)
+                lr_scheduler.step(val_loss)
+                
+                early_stopping(val_loss, net)
+                # 若满足 early stopping 要求
+                if early_stopping.early_stop:
+                    print("Early stopping")
+                    # 结束模型训练
+                    break
