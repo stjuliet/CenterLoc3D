@@ -173,6 +173,7 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
     # 保存时可记录backbone名称，方便区分
 
     # 保存模型参数、优化器参数、epoch信息等至一个全局字典中!!
+    # 便于中断训练后提取信息，恢复训练!
     state = {"epoch": epoch + 1, 
              "state_dict": model.state_dict(), 
              "optimizer": optimizer.state_dict()}
