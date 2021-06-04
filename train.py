@@ -251,7 +251,7 @@ if __name__ == "__main__":
     Cuda = True
 
     # 是否断点续训练
-    train_cont = True
+    train_cont = False
     train_cont_model_path = "logs/resnet50-Epoch1-Total_train_Loss449.9977-Val_Loss157.0929.pth"
 
     # 是否使用iou loss, 不使用设置为None, 

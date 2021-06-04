@@ -25,7 +25,7 @@ def preprocess_image(image):
 # model_path、classes_path和backbone
 class Bbox3dPred(object):
     _defaults = {
-        "model_path"        : 'logs/Epoch120-Total_train_Loss2.7936-Val_Loss4.7216.pth',
+        "model_path"        : 'logs/resnet50-Epoch92-Total_train_Loss2.7091-Val_Loss4.2130.pth',
         "classes_path"      : 'model_data/classes.txt',
         "backbone"          : "resnet50",
         "image_size"        : [512,512,3],
@@ -79,7 +79,7 @@ class Bbox3dPred(object):
         print('Loading weights into state dict...')
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         state_dict = torch.load(self.model_path, map_location=device)
-        self.model.load_state_dict(state_dict, strict=True)
+        self.model.load_state_dict(state_dict["state_dict"], strict=True)
         # 验证模式
         self.model = self.model.eval()
 
