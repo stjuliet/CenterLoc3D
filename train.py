@@ -178,7 +178,7 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
              "state_dict": model.state_dict(), 
              "optimizer": optimizer.state_dict()}
 
-    torch.save(state, 'logs/%s-Epoch%d-Total_train_Loss%.4f-Val_Loss%.4f.pth'%(backbone,(epoch+1),total_train_loss/(epoch_size+1),val_loss/(epoch_size_val+1)))
+    torch.save(state, 'logs/%s-Epoch%d-%s-Total_train_Loss%.4f-Val_Loss%.4f.pth'%(backbone,(epoch+1),iou_type,total_train_loss/(epoch_size+1),val_loss/(epoch_size_val+1)))
     return val_loss/(epoch_size_val+1)
 
 
@@ -255,10 +255,10 @@ if __name__ == "__main__":
     train_cont_model_path = "logs/resnet50-Epoch1-Total_train_Loss449.9977-Val_Loss157.0929.pth"
 
     # 是否使用iou loss, 不使用设置为None, 
-    # 使用则从{iou, giou, diou, ciou}中选取任意一个
-    iou_loss_type = "ciou"
+    # 使用则从{iou, giou, diou, ciou, cdiou}中选取任意一个
+    iou_loss_type = "cdiou"
     if iou_loss_type:
-        assert iou_loss_type in ["iou", "giou", "diou", "ciou"]
+        assert iou_loss_type in ["iou", "giou", "diou", "ciou", "cdiou"]
 
     # 获取模型
     backbone_resnet_index = {"resnet18": 0, "resnet34": 1, "resnet50": 2, "resnet101": 3, "resnet152": 4}

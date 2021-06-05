@@ -8,6 +8,8 @@ import argparse
 import math
 
 import numpy as np
+
+from utils import basic_diou, basic_ciou
 #----------------------------------------------------#
 #   用于计算mAP
 #   代码克隆自https://github.com/Cartucho/mAP
@@ -592,6 +594,7 @@ with open(results_files_path + "/results.txt", 'w') as results_file:
                         ua = (bb[2] - bb[0] + 1) * (bb[3] - bb[1] + 1) + (bbgt[2] - bbgt[0]
                                         + 1) * (bbgt[3] - bbgt[1] + 1) - iw * ih
                         ov = iw * ih / ua
+                        # ov = basic_diou(bb, bbgt)
                         if ov > ovmax:
                             ovmax = ov
                             gt_match = obj

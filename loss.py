@@ -1,7 +1,7 @@
 # multi loss
 import torch
 import torch.nn.functional as F
-from utils import cal_pred_2dvertex, basic_iou, basic_giou, basic_diou, basic_ciou
+from utils import cal_pred_2dvertex, basic_iou, basic_giou, basic_diou, basic_ciou, basic_cdiou
 import numpy as np
 
 
@@ -118,7 +118,7 @@ def reg_iou_loss(iou_type, pred_vertex, target, mask, perspective, fp_size, inpu
     常规L1 loss用于衡量预测坐标与真实坐标之间的距离，并没有考虑坐标之间的相关性，但是实际评价检测结果时用到的iou指标利用了坐标之间的相关性。
     因此，考虑设计iou loss用于更好地回归坐标。
 
-    iou_type: iou类型, iou/giou/diou/ciou
+    iou_type: iou类型, iou/giou/diou/ciou/cdiou
     pred_vertex: 预测车辆三维框顶点坐标，相对于128*128特征图
     target: 真实车辆三维框顶点坐标，相对于128*128特征图
     mask: 是否有车辆目标的位置
@@ -175,6 +175,9 @@ def reg_iou_loss(iou_type, pred_vertex, target, mask, perspective, fp_size, inpu
             elif iou_type == "ciou":
                 ciou = basic_ciou(bbox, bbox_gt)
                 calc_ious_loss[y, x] = 1.0 - ciou
+            elif iou_type == "cdiou":
+                cdiou = basic_cdiou(pred_vertex_new[b,y,x], target_new[b,y,x], bbox, bbox_gt)
+                calc_ious_loss[y, x] = 1.0 - cdiou
             else:
                 pass
 
