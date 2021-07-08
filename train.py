@@ -237,6 +237,11 @@ if __name__ == "__main__":
     input_shape = (512, 512, 3)
     output_shape = (128, 128)
 
+    # 创建训练模型保存文件夹
+    if not os.path.exists("./logs"):
+        os.makedirs("./logs")
+    
+
     # 类别文件
     classes_path = 'model_data/classes.txt'
 
@@ -251,12 +256,12 @@ if __name__ == "__main__":
     Cuda = True
 
     # 是否断点续训练
-    train_cont = False
-    train_cont_model_path = "logs/resnet50-Epoch1-Total_train_Loss449.9977-Val_Loss157.0929.pth"
+    train_cont = True
+    train_cont_model_path = "logs/resnet50-Epoch97-ciou-Total_train_Loss2.4215-Val_Loss3.3052.pth"
 
     # 是否使用iou loss, 不使用设置为None, 
     # 使用则从{iou, giou, diou, ciou, cdiou}中选取任意一个
-    iou_loss_type = "cdiou"
+    iou_loss_type = "ciou"
     if iou_loss_type:
         assert iou_loss_type in ["iou", "giou", "diou", "ciou", "cdiou"]
 
@@ -346,8 +351,8 @@ if __name__ == "__main__":
         graph_inputs = torch.from_numpy(np.random.rand(1,3,input_shape[0],input_shape[1])).type(torch.FloatTensor)
     writer.add_graph(model, (graph_inputs,))
 
-    train_tensorboard_step = 1
-    val_tensorboard_step = 1
+    train_tensorboard_step = 38.49*1000
+    val_tensorboard_step = 97
     
     #   主干特征提取网络特征通用，冻结训练可以加快训练速度
     #   也可以在训练初期防止权值被破坏。

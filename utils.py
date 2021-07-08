@@ -671,3 +671,9 @@ def gaussian_radius(det_size, min_overlap=0.7):
     r3 = (b3 + sq3) / 2
     return min(r1, r2, r3)
 # -----------------------------高斯核函数-----------------------------------------------------#
+
+
+if __name__ == "__main__":
+    calib_xml_path = "E:\\PythonCodes\\bbox3d_annotation_tools\\session6_right_data\\calib\\session6_right_calibParams.xml"
+    calib_matrix = read_calib_params(calib_xml_path, 1920, 1080)
+    print(calib_matrix)

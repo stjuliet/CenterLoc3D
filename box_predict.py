@@ -25,7 +25,7 @@ def preprocess_image(image):
 # model_path、classes_path和backbone
 class Bbox3dPred(object):
     _defaults = {
-        "model_path"        : 'logs/resnet50-Epoch92-Total_train_Loss2.7091-Val_Loss4.2130.pth',
+        "model_path"        : 'logs/resnet50-Epoch119-ciou-Total_train_Loss1.8391-Val_Loss3.0106.pth',
         "classes_path"      : 'model_data/classes.txt',
         "backbone"          : "resnet50",
         "image_size"        : [512,512,3],
@@ -131,8 +131,8 @@ class Bbox3dPred(object):
             output_hm, output_center, output_vertex, output_size = self.model(images)
 
             # ----------------------------------保存特定类别热力图-----------------------------------#
-            # 保存热力图
-            # 提取属于第0类的热力图
+            # # 保存热力图
+            # # 提取属于第0类的热力图
             # hotmaps = output_hm[0].cpu().numpy().transpose(1, 2, 0)[..., 0]
             # print(hotmaps.shape)
 
@@ -148,7 +148,7 @@ class Bbox3dPred(object):
             # heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
             # superimposed_img = heatmap * 0.4 + letter_img * 0.8
 
-            # cv.imwrite('img/hotmap.jpg', superimposed_img)
+            # cv.imwrite('img/raw_heat.png', heatmap)
             # cv.waitKey()
             # ----------------------------------保存特定类别热力图-----------------------------------#
 

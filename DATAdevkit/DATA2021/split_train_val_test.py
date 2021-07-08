@@ -12,7 +12,7 @@ saveBasePath = "DATAdevkit/DATA2021/ImageSets/Main"
 # 想要增加测试集修改trainval_percent
 # train_percent不需要修改
 # 训练验证、测试 9:1
-trainval_percent = 0.9
+trainval_percent = 0.95
 train_percent = 1
 
 temp_xml = os.listdir(xmlfilepath)
