@@ -47,7 +47,7 @@ for dt_index, single_dataset_path_list in enumerate(dataset_path_list):
             if not os.path.exists(img_new_path):
                 shutil.copy(img_raw_path, img_new_path)
     # test
-    for file_name in file_list[trainval_len_list[dt_index]:]:
+    for file_name in file_list[trainval_len_list[dt_index]:len(file_list)]:
         if file_name.endswith(".xml"):
             # print("test: " + file_name)
             xml_raw_path = single_dataset_path_list + "\\" + file_name
