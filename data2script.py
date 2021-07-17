@@ -62,6 +62,8 @@ if __name__ == "__main__":
         list_file = open('%s_%s.txt'%(year, image_set), 'w')  # 写入新txt
         for image_id in image_ids:  # 循环train/val/test图片集合
             # file_path calib_xml_path left,top,width,height,cls_id,cx1,cy1,u0,v0,...,u7,v7,v_l,v_w,v_h,pers,bpx1,bpx2
+            if image_set == "test":
+                year = "TESTDATA2021"
             list_file.write('%s/DATAdevkit/%s/JPEGImages/%s.jpg'%(wd, year, image_id)) # 写入文件绝对路径至txt
             convert_annotation(year, image_id, list_file)
             list_file.write('\n')
