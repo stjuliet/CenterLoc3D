@@ -32,7 +32,7 @@ if not os.path.exists("./input-3D/ground-truth"):
 for image_id in tqdm(image_ids):
     with open("./input-2D/ground-truth/"+image_id+".txt", "w") as f_2d:
         with open("./input-3D/ground-truth/"+image_id+".txt", "w") as f_3d:
-            root = ET.parse("./DATAdevkit/DATA2021/Annotations/"+image_id+".xml").getroot()
+            root = ET.parse("./DATAdevkit/TESTDATA2021/Annotations/"+image_id+".xml").getroot()
             for obj in root.findall('object'):
                 # 读取类型、视角及顶点信息
                 #  车辆类型(0，1，2) (str)

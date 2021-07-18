@@ -12,7 +12,7 @@ test_txt_path = "DATA2021_test.txt"
 # 是否记录测试结果，用于评价map
 record_result = True
 # 是否保存测试结果图片
-save_test_img = True
+save_test_img = False
 
 total_proc_time = 0
 with open(test_txt_path, "r") as fread:

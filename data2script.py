@@ -1,6 +1,7 @@
 # generate train script
 import xml.etree.ElementTree as ET
 from os import getcwd
+import os
 import re
 
 # 根据自己数据集名称修改
@@ -12,8 +13,8 @@ def convert_annotation(year, image_id, list_file):
     tree = ET.parse(in_file)
     root = tree.getroot()
     
-    # calib xml path
-    calib_xml_path = str(tree.find('calibfile').text)
+    # calib xml path (只保留文件名)
+    calib_xml_path = str(tree.find('calibfile').text).split("/")[-1]
 
     # box
     for idx, obj in enumerate(root.iter('object')):
@@ -47,7 +48,9 @@ def convert_annotation(year, image_id, list_file):
         # file_path (在外部写入)
         # calib_xml_path left,top,width,height,cls_id,cx1,cy1,u0,v0,...,u7,v7,v_l,v_w,v_h,pers,bpx1,bpx2  (29 items)
         if idx == 0:
-            list_file.write(" " + calib_xml_path)
+            if image_set == "test":
+                year = "TESTDATA2021"
+            list_file.write(" " + os.path.join('DATAdevkit/%s/Calib'%(year), calib_xml_path))
         single_line = " " + ",".join([box for box in bbox2d_data]) + "," + str(veh_cls_id) + "," + \
                         ",".join([centre for centre in veh_centre_data]) + "," + ",".join([str(vertex) for vertex in veh_vertex_data]) + "," + \
                             ",".join([size for size in veh_size_data]) + "," + str(veh_view_data) + "," + ",".join([base_point for base_point in veh_base_point_data])

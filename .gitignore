@@ -2,10 +2,11 @@
 /__pycache__/
 /nets/__pycache__/
 
-# ignore all .jpg .xml .txt files
+# ignore all .jpg .xml .txt .zip files
 *.jpg
 *.xml
 *.txt
+*.zip
 
 /input-2D/
 /input-3D/
