@@ -400,11 +400,11 @@ for txt_file in ground_truth_files_list:
         try:
             if "difficult" in line:
                     class_name, x0, y0, z0, x1, y1, z1, x2, y2, z2, x3, y3, z3, 
-                    x4, y4, z4, x5, y5, z5, x6, y6, z6, x7, y7, z7, _difficult = line.split()
+                    x4, y4, z4, x5, y5, z5, x6, y6, z6, x7, y7, z7, l, w, h, xc, yc, zc, _difficult = line.split()
                     is_difficult = True
             else:
                     class_name, x0, y0, z0, x1, y1, z1, x2, y2, z2, x3, y3, z3, 
-                    x4, y4, z4, x5, y5, z5, x6, y6, z6, x7, y7, z7 = line.split()
+                    x4, y4, z4, x5, y5, z5, x6, y6, z6, x7, y7, z7, l, w, h, xc, yc, zc = line.split()
                     
         except:
             if "difficult" in line:
@@ -418,6 +418,7 @@ for txt_file in ground_truth_files_list:
                 x5, y5, z5 = line_split[16], line_split[17], line_split[18]
                 x6, y6, z6 = line_split[19], line_split[20], line_split[21]
                 x7, y7, z7 = line_split[22], line_split[23], line_split[24]
+                l, w, h, xc, yc, zc = line_split[25:31]
 
                 class_name = ""
                 for name in line_split[:1]:
@@ -433,6 +434,8 @@ for txt_file in ground_truth_files_list:
                 x5, y5, z5 = line_split[16], line_split[17], line_split[18]
                 x6, y6, z6 = line_split[19], line_split[20], line_split[21]
                 x7, y7, z7 = line_split[22], line_split[23], line_split[24]
+                l, w, h, xc, yc, zc = line_split[25:31]
+
                 class_name = ""
                 for name in line_split[:1]:
                     class_name += name
@@ -440,11 +443,13 @@ for txt_file in ground_truth_files_list:
         if class_name in args.ignore:
             continue
         bbox = x0 + " " + y0 + " " + z0 + " " + x1 + " " + y1 + " " + z1 + " " + x2 + " " + y2 + " " + z2 + " " + x3 + " " + y3 + " " + z3 + " " + x4 + " " + y4 + " " + z4 + " " + x5 + " " + y5 + " " + z5 + " " + x6 + " " + y6 + " " + z6 + " " + x7 + " " + y7 + " " + z7
+        size = l + " " + w + " " + h
+        loc = xc + " " + yc + " " + zc
         if is_difficult:
-                bounding_boxes.append({"class_name":class_name, "bbox":bbox, "used":False, "difficult":True})
+                bounding_boxes.append({"class_name":class_name, "bbox":bbox, "size":size, "loc": loc, "used":False, "difficult":True})
                 is_difficult = False
         else:
-                bounding_boxes.append({"class_name":class_name, "bbox":bbox, "used":False})
+                bounding_boxes.append({"class_name":class_name, "bbox":bbox, "size":size, "loc": loc, "used":False})
                 # count that object
                 if class_name in gt_counter_per_class:
                     gt_counter_per_class[class_name] += 1
@@ -522,7 +527,7 @@ for class_index, class_name in enumerate(gt_classes):
         for line in lines:
             try:
                 tmp_class_name, confidence, x0, y0, z0, x1, y1, z1, x2, y2, z2, x3, y3, z3, 
-                x4, y4, z4, x5, y5, z5, x6, y6, z6, x7, y7, z7 = line.split()
+                x4, y4, z4, x5, y5, z5, x6, y6, z6, x7, y7, z7, l, w, h, xc, yc, zc = line.split()
             except:
                 line_split = line.split()
                 x0, y0, z0 = line_split[2], line_split[3], line_split[4]
@@ -534,6 +539,7 @@ for class_index, class_name in enumerate(gt_classes):
                 x6, y6, z6 = line_split[20], line_split[21], line_split[22]
                 x7, y7, z7 = line_split[23], line_split[24], line_split[25]
                 confidence = line_split[1]
+                l, w, h, xc, yc, zc = line_split[26:32]
                 tmp_class_name = ""
                 for name in line_split[:1]:
                     tmp_class_name += name
@@ -541,7 +547,9 @@ for class_index, class_name in enumerate(gt_classes):
             if tmp_class_name == class_name:
                 #print("match")
                 bbox = x0 + " " + y0 + " " + z0 + " " + x1 + " " + y1 + " " + z1 + " " + x2 + " " + y2 + " " + z2 + " " + x3 + " " + y3 + " " + z3 + " " + x4 + " " + y4 + " " + z4 + " " + x5 + " " + y5 + " " + z5 + " " + x6 + " " + y6 + " " + z6 + " " + x7 + " " + y7 + " " + z7
-                bounding_boxes.append({"confidence":confidence, "file_id":file_id, "bbox":bbox})
+                size = l + " " + w + " " + h
+                loc = xc + " " + yc + " " + zc
+                bounding_boxes.append({"confidence":confidence, "file_id":file_id, "bbox":bbox, "size":size, "loc":loc})
                 #print(bounding_boxes)
     # sort detection-results by decreasing confidence
     bounding_boxes.sort(key=lambda x:float(x['confidence']), reverse=True)
@@ -551,6 +559,10 @@ for class_index, class_name in enumerate(gt_classes):
 """
  Calculate the AP for each class
 """
+TP_NUM = 0
+total_size_error, total_loc_error = 0.0, 0.0
+valid_pers = 100*1000  # 有效视野范围
+
 sum_AP = 0.0
 ap_dictionary = {}
 lamr_dictionary = {}
@@ -648,9 +660,18 @@ with open(results_files_path + "/results.txt", 'w') as results_file:
                             count_true_positives[class_name] += 1
                             # update the ".json" file
                             with open(gt_file, 'w') as f:
-                                    f.write(json.dumps(ground_truth_data))
+                                f.write(json.dumps(ground_truth_data))
                             if show_animation:
                                 status = "MATCH!"
+                            # 计算每个匹配到的dt与gt的size误差和loc误差
+                            TP_NUM += 1
+                            l_dt, w_dt, h_dt = [float(x) for x in detection["size"].split()]
+                            cx_dt, cy_dt, cz_dt = [float(x) for x in detection["loc"].split()]
+                            l_gt, w_gt, h_gt = [float(x) for x in obj["size"].split()]
+                            cx_gt, cy_gt, cz_gt = [float(x) for x in obj["loc"].split()]
+                            total_loc_error += (math.sqrt((cx_dt-cx_gt)**2+(cy_dt-cy_gt)**2+(cy_dt-cy_gt)**2))
+                            total_size_error += (abs(l_dt-l_gt)/l_gt + abs(w_dt-w_gt)/w_gt + abs(h_dt-h_gt)/h_gt)
+
                         else:
                             # false positive (multiple detection)
                             fp[idx] = 1
@@ -986,3 +1007,23 @@ if draw_plot:
         plot_color,
         ""
         )
+
+
+# 记录三维尺寸和三维质心(定位)最后误差及精度
+avg_size_error = total_size_error / TP_NUM
+avg_loc_error = total_loc_error/(TP_NUM*valid_pers)
+
+avg_size_precision = 1.0 - avg_size_error
+avg_loc_precision = 1.0 - avg_loc_error
+
+with open("./input-3D/size_and_loc_precision.txt", "w") as f:
+    f.write("Avg_size_error: " + str(avg_size_error) + "\n")
+    f.write("Avg_loc_error: " + str(avg_loc_error) + "\n")
+    f.write("Avg_size_precision: " + str(avg_size_precision) + "\n")
+    f.write("Avg_loc_precision: " + str(avg_loc_precision) + "\n")
+
+print("Avg_size_error: " + str(avg_size_error))
+print("Avg_loc_error: " + str(avg_loc_error))
+
+print("Avg_size_precision: " + str(avg_size_precision))
+print("Avg_loc_precision: " + str(avg_loc_precision))

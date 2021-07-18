@@ -152,6 +152,7 @@ class Bbox3dPred(object):
             # cv.waitKey()
             # ----------------------------------保存特定类别热力图-----------------------------------#
 
+
             # ----------------------------------保存所有类别叠加热力图-----------------------------------#
             # final_heatmap = np.zeros((self.image_size[0], self.image_size[1], 3), dtype=np.uint8)
             # for i in range(self.num_classes):
@@ -170,8 +171,8 @@ class Bbox3dPred(object):
             #     heatmap = heatmap.astype(np.uint8)
 
             #     final_heatmap += heatmap
-
             # superimposed_img = final_heatmap * 0.4 + letter_img * 0.8
+            # r_heatmap = Image.fromarray(superimposed_img)
             # cv.imwrite('img/hotmap.jpg', superimposed_img)
             # cv.waitKey()
             # ----------------------------------保存所有类别叠加热力图-----------------------------------#
@@ -224,6 +225,24 @@ class Bbox3dPred(object):
 
             process_time = t2 - t1
 
+            # ----------------------------------保存特定类别热力图-----------------------------------#
+            # # 保存热力图
+            # # 提取属于第0类的热力图
+            hotmaps = output_hm[0].cpu().numpy().transpose(1, 2, 0)[..., 0]
+            # print(hotmaps.shape)
+
+            import matplotlib.pyplot as plt
+
+            heatmap = np.maximum(hotmaps, 0)
+            heatmap /= np.max(heatmap)
+            # plt.matshow(heatmap)
+            # plt.show()
+
+            heatmap = cv.resize(heatmap, (self.image_size[0], self.image_size[1]))
+            heatmap = np.uint8(255 * heatmap)
+            heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
+
+
         font = ImageFont.truetype(font='model_data/simhei.ttf',size=np.floor(3e-2 * np.shape(image)[1] + 0.5).astype('int32')//2)
 
         thickness = max((np.shape(image)[0] + np.shape(image)[1]) // self.image_size[0], 1)
@@ -238,6 +257,8 @@ class Bbox3dPred(object):
                 os.makedirs("./input-2D/detection-results")
             if not os.path.exists("./input-2D/images-optional"):
                 os.makedirs("./input-2D/images-optional")
+            if not os.path.exists("./input-2D/images-heatmap"):
+                os.makedirs("./input-2D/images-heatmap")
             # 3D
             if not os.path.exists("./input-3D"):
                 os.makedirs("./input-3D")
@@ -283,7 +304,7 @@ class Bbox3dPred(object):
                     draw.text((cx_d, cy_d), str(label,'UTF-8'), fill=(0, 0, 0), font=font)
 
                     # 长宽高
-                    draw.text((cx_d-60, cy_d-60), str(size,'UTF-8'), fill=(0, 0, 0), font=font)
+                    # draw.text((cx_d-60, cy_d-60), str(size,'UTF-8'), fill=(0, 0, 0), font=font)
 
                     draw.ellipse((cx_d -3 , cy_d - 3, cx_d + 3, cy_d + 3), outline=(0,0,255), width=2)
 
@@ -291,24 +312,24 @@ class Bbox3dPred(object):
                     # 宽度方向
                     # 0-1  2-3  4-5  6-7
                     # if (vertex[14] <= cx < = vertex[2]) and (vertex[13] <= cy <= vertex[1]):
-                    draw.line([vertex[0], vertex[1], vertex[2], vertex[3]], fill=128, width=2)
-                    draw.line([vertex[4], vertex[5], vertex[6], vertex[7]], fill=128, width=2)
-                    draw.line([vertex[8], vertex[9], vertex[10], vertex[11]], fill=128, width=2)
-                    draw.line([vertex[12], vertex[13], vertex[14], vertex[15]], fill=128, width=2)
+                    draw.line([vertex[0], vertex[1], vertex[2], vertex[3]], fill=(255, 0, 0), width=2)
+                    draw.line([vertex[4], vertex[5], vertex[6], vertex[7]], fill=(255, 0, 0), width=2)
+                    draw.line([vertex[8], vertex[9], vertex[10], vertex[11]], fill=(255, 0, 0), width=2)
+                    draw.line([vertex[12], vertex[13], vertex[14], vertex[15]], fill=(255, 0, 0), width=2)
 
                     # 长度方向
                     # 0-3 1-2 4-7 5-6
-                    draw.line([vertex[0], vertex[1], vertex[6], vertex[7]], fill=128, width=2)
-                    draw.line([vertex[2], vertex[3], vertex[4], vertex[5]], fill=128, width=2)
-                    draw.line([vertex[8], vertex[9], vertex[14], vertex[15]], fill=128, width=2)
-                    draw.line([vertex[10], vertex[11], vertex[12], vertex[13]], fill=128, width=2)
+                    draw.line([vertex[0], vertex[1], vertex[6], vertex[7]], fill=(0, 0, 255), width=2)
+                    draw.line([vertex[2], vertex[3], vertex[4], vertex[5]], fill=(0, 0, 255), width=2)
+                    draw.line([vertex[8], vertex[9], vertex[14], vertex[15]], fill=(0, 0, 255), width=2)
+                    draw.line([vertex[10], vertex[11], vertex[12], vertex[13]], fill=(0, 0, 255), width=2)
 
                     # 高度方向
                     # 0-4 1-5 2-6 3-7
-                    draw.line([vertex[0], vertex[1], vertex[8], vertex[9]], fill=128, width=2)
-                    draw.line([vertex[2], vertex[3], vertex[10], vertex[11]], fill=128, width=2)
-                    draw.line([vertex[4], vertex[5], vertex[12], vertex[13]], fill=128, width=2)
-                    draw.line([vertex[6], vertex[7], vertex[14], vertex[15]], fill=128, width=2)
+                    draw.line([vertex[0], vertex[1], vertex[8], vertex[9]], fill=(0, 255, 0), width=2)
+                    draw.line([vertex[2], vertex[3], vertex[10], vertex[11]], fill=(0, 255, 0), width=2)
+                    draw.line([vertex[4], vertex[5], vertex[12], vertex[13]], fill=(0, 255, 0), width=2)
+                    draw.line([vertex[6], vertex[7], vertex[14], vertex[15]], fill=(0, 255, 0), width=2)
 
                     # 保存record
                     if is_record_result:
@@ -320,13 +341,20 @@ class Bbox3dPred(object):
                             f_2d.write("%s %s %s %s %s %s\n" % (predicted_class, str(score)[:6], str(int(left)), str(int(top)), str(int(right)),str(int(bottom))))
 
                         vertex_3d = cal_pred_3dvertex(vertex, h, calib_matrix)
-                        line_3d = ""
+                        line_3d, line_size, line_ct_loc = "", "", ""
                         for i in vertex_3d:
                             line_3d += " " + str(i)
-                        f_3d.write("%s %s %s\n" % (predicted_class, str(score)[:6], str(line_3d.strip())))
+                        for i in (l, w, h):
+                            line_size += " " + str(i)
+                        # 计算3D质心坐标
+                        cx_3d, cy_3d, cz_3d = RDUVtoXYZ(calib_matrix, cx_d, cy_d, 1000*h/2)
+                        for i in (cx_3d, cy_3d, cz_3d):
+                            line_ct_loc += " " + str(i)
+
+                        f_3d.write("%s %s %s %s %s\n" % (predicted_class, str(score)[:6], str(line_3d.strip()), str(line_size.strip()), str(line_ct_loc.strip())))
 
                     del draw
-        return image, process_time
+        return image, heatmap, process_time
 
         # for i, c in enumerate(top_label_indices):
         #     predicted_class = self.class_names[int(c)]
