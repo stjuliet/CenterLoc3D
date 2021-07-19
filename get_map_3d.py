@@ -561,7 +561,9 @@ for class_index, class_name in enumerate(gt_classes):
 """
 TP_NUM = 0
 total_size_error, total_loc_error = 0.0, 0.0
+single_size_error, single_loc_error = [], []
 valid_pers = 100*1000  # 有效视野范围
+tp_sizes_dt, tp_locs_dt, tp_sizes_gt, tp_locs_gt = [], [], [], []  # 保存TP的预测值和真实值
 
 sum_AP = 0.0
 ap_dictionary = {}
@@ -669,8 +671,19 @@ with open(results_files_path + "/results.txt", 'w') as results_file:
                             cx_dt, cy_dt, cz_dt = [float(x) for x in detection["loc"].split()]
                             l_gt, w_gt, h_gt = [float(x) for x in obj["size"].split()]
                             cx_gt, cy_gt, cz_gt = [float(x) for x in obj["loc"].split()]
-                            total_loc_error += (math.sqrt((cx_dt-cx_gt)**2+(cy_dt-cy_gt)**2+(cy_dt-cy_gt)**2))
-                            total_size_error += (abs(l_dt-l_gt)/l_gt + abs(w_dt-w_gt)/w_gt + abs(h_dt-h_gt)/h_gt)
+                            # 保存tp的预测值和真实值，用于记录至txt中
+                            tp_sizes_dt.append([l_dt, w_dt, h_dt])
+                            tp_sizes_gt.append([l_gt, w_gt, h_gt])
+                            tp_locs_dt.append([cx_dt, cy_dt, cz_dt])
+                            tp_locs_gt.append([cx_gt, cy_gt, cz_gt])
+                            # 保存单个样本误差，用于记录至txt中
+                            tmp_size_error = abs(l_dt-l_gt)/l_gt + abs(w_dt-w_gt)/w_gt + abs(h_dt-h_gt)/h_gt
+                            tmp_loc_error = math.sqrt((cx_dt-cx_gt)**2+(cy_dt-cy_gt)**2+(cy_dt-cy_gt)**2)
+                            single_size_error.append(tmp_size_error)
+                            single_loc_error.append(tmp_loc_error)
+                            # 累计误差
+                            total_loc_error += tmp_loc_error
+                            total_size_error += tmp_size_error
 
                         else:
                             # false positive (multiple detection)
@@ -1017,6 +1030,11 @@ avg_size_precision = 1.0 - avg_size_error
 avg_loc_precision = 1.0 - avg_loc_error
 
 with open("./input-3D/size_and_loc_precision.txt", "w") as f:
+    f.write("Head: ".ljust(35) + "L".ljust(22) + "W".ljust(22) + "H".ljust(22) + "CX".ljust(22) + "CY".ljust(22) + "CZ".ljust(22) +"\n")
+    for i in range(len(tp_sizes_dt)):
+        f.write("TP_SIZES_LOCS_DT: " + str("\t".join(map("{:20}".format, tp_sizes_dt[i]))) + "\t" + str("\t".join(map("{:20}".format,tp_locs_dt[i]))) + "\n")
+        f.write("TP_SIZES_LOCS_GT: " + str("\t".join(map("{:20}".format, tp_sizes_gt[i]))) + "\t" + str("\t".join(map("{:20}".format,tp_locs_gt[i]))) + "\n")
+        f.write("TP_SIZES_LOCS_ERROR_PRECISION: " + "\t" + str(single_size_error[i]).zfill(15) + "\t\t\t\t\t" + str(single_loc_error[i]).zfill(15) + "\n\n")
     f.write("Avg_size_error: " + str(avg_size_error) + "\n")
     f.write("Avg_loc_error: " + str(avg_loc_error) + "\n")
     f.write("Avg_size_precision: " + str(avg_size_precision) + "\n")
