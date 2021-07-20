@@ -256,7 +256,7 @@ if __name__ == "__main__":
     Cuda = True
 
     # 是否断点续训练
-    train_cont = True
+    train_cont = False
     train_cont_model_path = "logs/resnet50-Epoch97-ciou-Total_train_Loss2.4215-Val_Loss3.3052.pth"
 
     # 是否使用iou loss, 不使用设置为None, 
@@ -351,8 +351,8 @@ if __name__ == "__main__":
         graph_inputs = torch.from_numpy(np.random.rand(1,3,input_shape[0],input_shape[1])).type(torch.FloatTensor)
     writer.add_graph(model, (graph_inputs,))
 
-    train_tensorboard_step = 38.49*1000
-    val_tensorboard_step = 97
+    train_tensorboard_step = 1
+    val_tensorboard_step = 1
     
     #   主干特征提取网络特征通用，冻结训练可以加快训练速度
     #   也可以在训练初期防止权值被破坏。

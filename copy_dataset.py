@@ -19,7 +19,7 @@ voc_test_anno_dir = "DATAdevkit/TESTDATA2021/Annotations"
 voc_test_calib_dir = "DATAdevkit/TESTDATA2021/Calib"
 
 # 指定训练验证集开始位置
-trainval_len_list = [2852*3, 3183*3, 117*3]
+trainval_len_list = [2852*3, 3183*3, 1014*3]
 
 # 指定数据集图片类型
 IMAGE_TYPES = [".jpg", ".png", ".jpeg"]
