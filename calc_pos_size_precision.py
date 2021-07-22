@@ -11,13 +11,17 @@ MINOVERLAP = 0.7
 MATCHED_NUM = 0
 
 # 是否导出定位可视化
-vis = False
+vis_pos = False
+vis_curve = True
 
 det_txt_dir = "%s/input-3D/detection-results" % mode
 gt_txt_dir = "%s/input-3D/ground-truth" % mode
 
 if not os.path.exists("%s/input-3D/visualize-pos" % mode):
     os.makedirs("%s/input-3D/visualize-pos" % mode)
+
+if not os.path.exists("%s/input-3D/visualize-loc-curve" % mode):
+    os.makedirs("%s/input-3D/visualize-loc-curve" % mode)
 
 list_det_txt = sorted(os.listdir(det_txt_dir))
 list_gt_txt = sorted(os.listdir(gt_txt_dir))
@@ -27,6 +31,11 @@ single_size_error, single_loc_error = [], []
 l_error, w_error, h_error = [], [], []
 
 tp_sizes_dt, tp_locs_dt, tp_sizes_gt, tp_locs_gt = [], [], [], []  # 保存TP的预测值和真实值
+
+# 统计一种场景下的xc,yc,zc, l,w,h的误差，单位：m
+s_xc_error, s_yc_error, s_zc_error, s_loc_error = [], [], [], []
+s_l_error, s_w_error, s_h_error, s_size_error = [], [], [], []
+s_gt_yc = []
 
 
 font_legend = {'family': 'Times New Roman',
@@ -40,9 +49,23 @@ font_label = {'family': 'Times New Roman',
         }
 
 for i in tqdm(range(len(list_det_txt))):  # 循环文件
-    # 每个文件生成一个散点图保存！
+    # 每个场景生成一个折线图保存！
+    if vis_curve:
+        fig, ax = plt.subplots(figsize=(20,15),dpi=100)
+        plt.tick_params(labelsize=40)
+        labels = ax.get_xticklabels() + ax.get_yticklabels()
+
+        [label.set_fontname('Times New Roman') for label in labels]
+
+        plt.xlabel("ground truth distance/m", font_label)
+        plt.ylabel("error/m", font_label)
+
+        # 坐标刻度朝内
+        plt.rcParams['xtick.direction'] = 'in'
+        plt.rcParams['ytick.direction'] = 'in'
     
-    if vis:
+    # 每个文件生成一个散点图保存！
+    if vis_pos:
         fig, ax = plt.subplots(figsize=(15,20),dpi=100)
         plt.tick_params(labelsize=40)
         labels = ax.get_xticklabels() + ax.get_yticklabels()
@@ -76,7 +99,7 @@ for i in tqdm(range(len(list_det_txt))):  # 循环文件
             bb_det = np.array(det[2:26]).astype(np.float)
             bb_gt = np.array(gt[1:25]).astype(np.float)
 
-            if vis:
+            if vis_pos:
                 # 无论是否匹配到都画出结果
                 cx_gt_unmatched, cy_gt_unmatched, cz_gt_unmatched = np.array(gt[28:31]).astype(np.float)
                 cx_det_unmatched, cy_det_unmatched, cz_det_unmatched = np.array(det[29:32]).astype(np.float)
@@ -109,8 +132,68 @@ for i in tqdm(range(len(list_det_txt))):  # 循环文件
                 # 累计误差
                 total_loc_error += tmp_loc_error
                 total_size_error += tmp_size_error
+
+                # 匹配上才记录真实位置和误差
+                if vis_curve:
+                    s_xc_error.append(abs(cx_dt/1000-cx_gt/1000))
+                    s_yc_error.append(abs(cy_dt/1000-cy_gt/1000))
+                    s_zc_error.append(abs(cz_dt/1000-cz_gt/1000))
+                    s_loc_error.append(abs(cx_dt/1000-cx_gt/1000)+abs(cy_dt/1000-cy_gt/1000)+abs(cz_dt/1000-cz_gt/1000))
+                    s_l_error.append(abs(l_dt-l_gt))
+                    s_w_error.append(abs(w_dt-w_gt))
+                    s_h_error.append(abs(h_dt-h_gt))
+                    s_size_error.append(abs(l_dt-l_gt)+abs(w_dt-w_gt)+abs(h_dt-h_gt))
+                    s_gt_yc.append(cy_gt/1000)
+    if vis_curve and i > 0 and list_det_txt[i].split("_")[:2] != list_det_txt[i-1].split("_")[:2]:
+        # 绘图保存后清空所有变量
+        # xc_plot = plt.plot(sorted(s_gt_yc), sorted(s_xc_error), color="green", linewidth=2, label="X error")
+        # yc_plot = plt.plot(sorted(s_gt_yc), sorted(s_yc_error), color="red", linewidth=2, label="Y error")
+        # zc_plot = plt.plot(sorted(s_gt_yc), sorted(s_zc_error), color="blue", linewidth=2, label="Z error")
+        # loc_plot = plt.plot(sorted(s_gt_yc), sorted(s_loc_error), color="orange", linewidth=2, label="total error")
+
+        l_plot = plt.plot(sorted(s_gt_yc), sorted(s_l_error), color="green", linewidth=2, label="l error")
+        w_plot = plt.plot(sorted(s_gt_yc), sorted(s_w_error), color="red", linewidth=2, label="w error")
+        h_plot = plt.plot(sorted(s_gt_yc), sorted(s_h_error), color="blue", linewidth=2, label="h error")
+        size_plot = plt.plot(sorted(s_gt_yc), sorted(s_size_error), color="orange", linewidth=2, label="total error")
+
+        plt.legend(loc="best", prop=font_legend)
+
+        # plt.savefig(os.path.join("%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_loc_curve.png"))
+        plt.savefig(os.path.join("%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_size_curve.png"))
+        plt.close()
+
+        s_xc_error.clear()
+        s_yc_error.clear()
+        s_zc_error.clear()
+        s_loc_error.clear()
+        s_l_error.clear()
+        s_w_error.clear()
+        s_h_error.clear()
+        s_size_error.clear()
+        s_gt_yc.clear()
+
+    if vis_curve and i == len(list_det_txt)-1:
+        # xc_plot = plt.plot(sorted(s_gt_yc), sorted(s_xc_error), color="green", linewidth=2, label="X error")
+        # yc_plot = plt.plot(sorted(s_gt_yc), sorted(s_yc_error), color="red", linewidth=2, label="Y error")
+        # zc_plot = plt.plot(sorted(s_gt_yc), sorted(s_zc_error), color="blue", linewidth=2, label="Z error")
+        # loc_plot = plt.plot(sorted(s_gt_yc), sorted(s_loc_error), color="orange", linewidth=2, label="total error")
+
+        l_plot = plt.plot(sorted(s_gt_yc), sorted(s_l_error), color="green", linewidth=2, label="l error")
+        w_plot = plt.plot(sorted(s_gt_yc), sorted(s_w_error), color="red", linewidth=2, label="w error")
+        h_plot = plt.plot(sorted(s_gt_yc), sorted(s_h_error), color="blue", linewidth=2, label="h error")
+        size_plot = plt.plot(sorted(s_gt_yc), sorted(s_size_error), color="orange", linewidth=2, label="total error")
+
+        plt.legend(loc="best", prop=font_legend)
+
+        # plt.savefig(os.path.join("%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_loc_curve.png"))
+        plt.savefig(os.path.join("%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_size_curve.png"))
+        plt.close()
     
-    if vis:
+    if vis_curve:
+        plt.close()
+
+
+    if vis_pos:
         plt.savefig(os.path.join("%s/input-3D/visualize-pos" % mode, list_det_txt[i].split(".")[0] + "_vispos.png"))
         plt.close()
 

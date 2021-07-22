@@ -99,7 +99,8 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
             total_vertex_loss += vertex_loss.item()
             total_size_loss += size_loss.item()
             total_reproj_loss += reproj_loss.item()
-            total_iou_loss += iou_loss.item()
+            if iou_type:
+                total_iou_loss += iou_loss.item()
 
             loss.backward()
             optimizer.step()
@@ -261,7 +262,7 @@ if __name__ == "__main__":
 
     # 是否使用iou loss, 不使用设置为None, 
     # 使用则从{iou, giou, diou, ciou, cdiou}中选取任意一个
-    iou_loss_type = "ciou"
+    iou_loss_type = None
     if iou_loss_type:
         assert iou_loss_type in ["iou", "giou", "diou", "ciou", "cdiou"]
 
@@ -342,7 +343,7 @@ if __name__ == "__main__":
     np.random.seed(None)
     num_val = int(len(lines)*val_split)
     num_train = len(lines) - num_val
-    # 将val写入val.txt中
+    # 将val写入val.txt中(每次生成都一样)
     with open("DATAdevkit/DATA2021/ImageSets/Main/val.txt", "w") as fval:
         for line in lines[num_train:]:
             fval.write(line.split(" ")[0].split("/")[-1].split(".")[0] + "\n")
