@@ -98,7 +98,7 @@ class Bbox3dPred(object):
                 self.colors))
 
     # 检测图片
-    def detect_image(self, image, image_id, is_record_result, calib_path = None):
+    def detect_image(self, image, image_id, is_record_result, calib_path = None, mode = "test"):
         image_shape = np.array(np.shape(image)[0:2])
 
         # 给图像增加灰条，实现不失真的resize
@@ -251,25 +251,25 @@ class Bbox3dPred(object):
         if is_record_result:
             # 首先判断是否存在以下文件夹，不存在则创建
             # 2D
-            if not os.path.exists("./input-2D"):
-                os.makedirs("./input-2D")
-            if not os.path.exists("./input-2D/detection-results"):
-                os.makedirs("./input-2D/detection-results")
-            if not os.path.exists("./input-2D/images-optional"):
-                os.makedirs("./input-2D/images-optional")
-            if not os.path.exists("./input-2D/images-heatmap"):
-                os.makedirs("./input-2D/images-heatmap")
+            if not os.path.exists(".%s/input-2D"%mode):
+                os.makedirs(".%s/input-2D"%mode)
+            if not os.path.exists(".%s/input-2D/detection-results"%mode):
+                os.makedirs(".%s/input-2D/detection-results"%mode)
+            if not os.path.exists(".%s/input-2D/images-optional"%mode):
+                os.makedirs(".%s/input-2D/images-optional"%mode)
+            if not os.path.exists(".%s/input-2D/images-heatmap"%mode):
+                os.makedirs(".%s/input-2D/images-heatmap"%mode)
             # 3D
-            if not os.path.exists("./input-3D"):
-                os.makedirs("./input-3D")
-            if not os.path.exists("./input-3D/detection-results"):
-                os.makedirs("./input-3D/detection-results")
-            if not os.path.exists("./input-3D/images-optional"):
-                os.makedirs("./input-3D/images-optional")
+            if not os.path.exists(".%s/input-3D"%mode):
+                os.makedirs(".%s/input-3D"%mode)
+            if not os.path.exists(".%s/input-3D/detection-results"%mode):
+                os.makedirs(".%s/input-3D/detection-results"%mode)
+            if not os.path.exists(".%s/input-3D/images-optional"%mode):
+                os.makedirs(".%s/input-3D/images-optional"%mode)
 
             # 打开记录txt文件
-            f_2d = open("./input-2D/detection-results/"+image_id+".txt","w")
-            f_3d = open("./input-3D/detection-results/"+image_id+".txt","w")
+            f_2d = open(".%s/input-2D/detection-results/"%mode+image_id+".txt","w")
+            f_3d = open(".%s/input-3D/detection-results/"%mode+image_id+".txt","w")
 
             calib_matrix = read_calib_params(calib_path, image_shape[1], image_shape[0])
 

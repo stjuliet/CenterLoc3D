@@ -6,6 +6,7 @@ import xml.etree.ElementTree as ET
 from tqdm import tqdm
 from utils import *
 
+mode = "test"  # 选择在验证集上还是在测试集上
 
 # 获得类
 def get_classes(classes_path):
@@ -15,26 +16,30 @@ def get_classes(classes_path):
     class_names = [c.strip() for c in class_names]
     return class_names
 
-image_ids = open('./DATAdevkit/DATA2021/ImageSets/Main/test.txt').read().strip().split()
-gt_annos = open('DATA2021_test.txt').readlines()
+image_ids = open('./DATAdevkit/DATA2021/ImageSets/Main/val.txt').read().strip().split()
+gt_annos = open('DATA2021_%s.txt'%mode).readlines()
 
 # 2D
-if not os.path.exists("./input-2D"):
-    os.makedirs("./input-2D")
-if not os.path.exists("./input-2D/ground-truth"):
-    os.makedirs("./input-2D/ground-truth")
+if not os.path.exists(".%s/input-2D"%mode):
+    os.makedirs(".%s/input-2D"%mode)
+if not os.path.exists(".%s/input-2D/ground-truth"%mode):
+    os.makedirs(".%s/input-2D/ground-truth"%mode)
 
 # 3D
-if not os.path.exists("./input-3D"):
-    os.makedirs("./input-3D")
-if not os.path.exists("./input-3D/ground-truth"):
-    os.makedirs("./input-3D/ground-truth")
+if not os.path.exists(".%s/input-3D"%mode):
+    os.makedirs(".%s/input-3D"%mode)
+if not os.path.exists(".%s/input-3D/ground-truth"%mode):
+    os.makedirs(".%s/input-3D/ground-truth"%mode)
 
 ct = 0
 for image_id in tqdm(image_ids):
-    with open("./input-2D/ground-truth/"+image_id+".txt", "w") as f_2d:
-        with open("./input-3D/ground-truth/"+image_id+".txt", "w") as f_3d:
-            root = ET.parse("./DATAdevkit/TESTDATA2021/Annotations/"+image_id+".xml").getroot()
+    with open(".%s/input-2D/ground-truth/"%mode+image_id+".txt", "w") as f_2d:
+        with open(".%s/input-3D/ground-truth/"%mode+image_id+".txt", "w") as f_3d:
+            if mode == "test":
+                root_dir = "./DATAdevkit/TESTDATA2021/Annotations/"
+            else:
+                root_dir = "./DATAdevkit/DATA2021/Annotations/"
+            root = ET.parse(root_dir + image_id + ".xml").getroot()
             width = int(root.find("size").find("width").text)
             height = int(root.find("size").find("height").text)
             calib_xml_path = gt_annos[ct].split(" ")[1]

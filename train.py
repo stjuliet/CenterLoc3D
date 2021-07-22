@@ -342,6 +342,11 @@ if __name__ == "__main__":
     np.random.seed(None)
     num_val = int(len(lines)*val_split)
     num_train = len(lines) - num_val
+    # 将val写入val.txt中
+    with open("DATAdevkit/DATA2021/ImageSets/Main/val.txt", "w") as fval:
+        for line in lines[num_train:]:
+            fval.write(line.split(" ")[0].split("/")[-1].split(".")[0] + "\n")
+
 
     # 构建绘制loss曲线图writer
     writer = SummaryWriter(log_dir='train-logs',flush_secs=60)
