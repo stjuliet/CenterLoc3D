@@ -13,8 +13,10 @@
 
 /img/
 /logs/
+
+/logs-no_iou_loss/
 /logs-all-modules/
-/logs-single-scene/
 /logs-three-scenes-pre/
+
 /model_data/
 /train-logs/

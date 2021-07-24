@@ -25,7 +25,7 @@ def preprocess_image(image):
 # model_path、classes_path和backbone
 class Bbox3dPred(object):
     _defaults = {
-        "model_path"        : 'logs/resnet50-Epoch108-ciou-Total_train_Loss1.8616-Val_Loss3.0464.pth',
+        "model_path"        : 'logs-all-modules/resnet50-Epoch108-ciou-Total_train_Loss1.8616-Val_Loss3.0464.pth',
         "classes_path"      : 'model_data/classes.txt',
         "backbone"          : "resnet50",
         "image_size"        : [512,512,3],
@@ -251,25 +251,25 @@ class Bbox3dPred(object):
         if is_record_result:
             # 首先判断是否存在以下文件夹，不存在则创建
             # 2D
-            if not os.path.exists(".%s/input-2D"%mode):
-                os.makedirs(".%s/input-2D"%mode)
-            if not os.path.exists(".%s/input-2D/detection-results"%mode):
-                os.makedirs(".%s/input-2D/detection-results"%mode)
-            if not os.path.exists(".%s/input-2D/images-optional"%mode):
-                os.makedirs(".%s/input-2D/images-optional"%mode)
-            if not os.path.exists(".%s/input-2D/images-heatmap"%mode):
-                os.makedirs(".%s/input-2D/images-heatmap"%mode)
+            if not os.path.exists("./%s/input-2D"%mode):
+                os.makedirs("./%s/input-2D"%mode)
+            if not os.path.exists("./%s/input-2D/detection-results"%mode):
+                os.makedirs("./%s/input-2D/detection-results"%mode)
+            if not os.path.exists("./%s/input-2D/images-optional"%mode):
+                os.makedirs("./%s/input-2D/images-optional"%mode)
+            if not os.path.exists("./%s/input-2D/images-heatmap"%mode):
+                os.makedirs("./%s/input-2D/images-heatmap"%mode)
             # 3D
-            if not os.path.exists(".%s/input-3D"%mode):
-                os.makedirs(".%s/input-3D"%mode)
-            if not os.path.exists(".%s/input-3D/detection-results"%mode):
-                os.makedirs(".%s/input-3D/detection-results"%mode)
-            if not os.path.exists(".%s/input-3D/images-optional"%mode):
-                os.makedirs(".%s/input-3D/images-optional"%mode)
+            if not os.path.exists("./%s/input-3D"%mode):
+                os.makedirs("./%s/input-3D"%mode)
+            if not os.path.exists("./%s/input-3D/detection-results"%mode):
+                os.makedirs("./%s/input-3D/detection-results"%mode)
+            if not os.path.exists("./%s/input-3D/images-optional"%mode):
+                os.makedirs("./%s/input-3D/images-optional"%mode)
 
             # 打开记录txt文件
-            f_2d = open(".%s/input-2D/detection-results/"%mode+image_id+".txt","w")
-            f_3d = open(".%s/input-3D/detection-results/"%mode+image_id+".txt","w")
+            f_2d = open("./%s/input-2D/detection-results/"%mode+image_id+".txt","w")
+            f_3d = open("./%s/input-3D/detection-results/"%mode+image_id+".txt","w")
 
             calib_matrix = read_calib_params(calib_path, image_shape[1], image_shape[0])
 

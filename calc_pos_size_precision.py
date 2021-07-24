@@ -5,7 +5,7 @@ from tqdm import tqdm
 import math
 import matplotlib.pyplot as plt
 
-mode = "test"
+mode = "val"
 
 MINOVERLAP = 0.7
 MATCHED_NUM = 0
@@ -17,8 +17,8 @@ vis_curve = True
 det_txt_dir = "%s/input-3D/detection-results" % mode
 gt_txt_dir = "%s/input-3D/ground-truth" % mode
 
-if not os.path.exists("%s/input-3D/visualize-pos" % mode):
-    os.makedirs("%s/input-3D/visualize-pos" % mode)
+if not os.path.exists("%s/input-3D/visualize-pos-%s" % (mode, str(MINOVERLAP))):
+    os.makedirs("%s/input-3D/visualize-pos-%s" % (mode, str(MINOVERLAP)))
 
 if not os.path.exists("%s/input-3D/visualize-loc-curve" % mode):
     os.makedirs("%s/input-3D/visualize-loc-curve" % mode)
@@ -146,20 +146,20 @@ for i in tqdm(range(len(list_det_txt))):  # 循环文件
                     s_gt_yc.append(cy_gt/1000)
     if vis_curve and i > 0 and list_det_txt[i].split("_")[:2] != list_det_txt[i-1].split("_")[:2]:
         # 绘图保存后清空所有变量
-        # xc_plot = plt.plot(sorted(s_gt_yc), sorted(s_xc_error), color="green", linewidth=2, label="X error")
-        # yc_plot = plt.plot(sorted(s_gt_yc), sorted(s_yc_error), color="red", linewidth=2, label="Y error")
-        # zc_plot = plt.plot(sorted(s_gt_yc), sorted(s_zc_error), color="blue", linewidth=2, label="Z error")
-        # loc_plot = plt.plot(sorted(s_gt_yc), sorted(s_loc_error), color="orange", linewidth=2, label="total error")
+        xc_plot = plt.plot(sorted(s_gt_yc), sorted(s_xc_error), color="green", linewidth=2, label="X error")
+        yc_plot = plt.plot(sorted(s_gt_yc), sorted(s_yc_error), color="red", linewidth=2, label="Y error")
+        zc_plot = plt.plot(sorted(s_gt_yc), sorted(s_zc_error), color="blue", linewidth=2, label="Z error")
+        loc_plot = plt.plot(sorted(s_gt_yc), sorted(s_loc_error), color="orange", linewidth=2, label="total error")
 
-        l_plot = plt.plot(sorted(s_gt_yc), sorted(s_l_error), color="green", linewidth=2, label="l error")
-        w_plot = plt.plot(sorted(s_gt_yc), sorted(s_w_error), color="red", linewidth=2, label="w error")
-        h_plot = plt.plot(sorted(s_gt_yc), sorted(s_h_error), color="blue", linewidth=2, label="h error")
-        size_plot = plt.plot(sorted(s_gt_yc), sorted(s_size_error), color="orange", linewidth=2, label="total error")
+        # l_plot = plt.plot(sorted(s_gt_yc), sorted(s_l_error), color="green", linewidth=2, label="l error")
+        # w_plot = plt.plot(sorted(s_gt_yc), sorted(s_w_error), color="red", linewidth=2, label="w error")
+        # h_plot = plt.plot(sorted(s_gt_yc), sorted(s_h_error), color="blue", linewidth=2, label="h error")
+        # size_plot = plt.plot(sorted(s_gt_yc), sorted(s_size_error), color="orange", linewidth=2, label="total error")
 
         plt.legend(loc="best", prop=font_legend)
 
-        # plt.savefig(os.path.join("%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_loc_curve.png"))
-        plt.savefig(os.path.join("%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_size_curve.png"))
+        plt.savefig(os.path.join("%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_loc_curve-%s.png"%str(MINOVERLAP)))
+        # plt.savefig(os.path.join("%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_size_curve-%s.png"%str(MINOVERLAP)))
         plt.close()
 
         s_xc_error.clear()
@@ -173,20 +173,20 @@ for i in tqdm(range(len(list_det_txt))):  # 循环文件
         s_gt_yc.clear()
 
     if vis_curve and i == len(list_det_txt)-1:
-        # xc_plot = plt.plot(sorted(s_gt_yc), sorted(s_xc_error), color="green", linewidth=2, label="X error")
-        # yc_plot = plt.plot(sorted(s_gt_yc), sorted(s_yc_error), color="red", linewidth=2, label="Y error")
-        # zc_plot = plt.plot(sorted(s_gt_yc), sorted(s_zc_error), color="blue", linewidth=2, label="Z error")
-        # loc_plot = plt.plot(sorted(s_gt_yc), sorted(s_loc_error), color="orange", linewidth=2, label="total error")
+        xc_plot = plt.plot(sorted(s_gt_yc), sorted(s_xc_error), color="green", linewidth=2, label="X error")
+        yc_plot = plt.plot(sorted(s_gt_yc), sorted(s_yc_error), color="red", linewidth=2, label="Y error")
+        zc_plot = plt.plot(sorted(s_gt_yc), sorted(s_zc_error), color="blue", linewidth=2, label="Z error")
+        loc_plot = plt.plot(sorted(s_gt_yc), sorted(s_loc_error), color="orange", linewidth=2, label="total error")
 
-        l_plot = plt.plot(sorted(s_gt_yc), sorted(s_l_error), color="green", linewidth=2, label="l error")
-        w_plot = plt.plot(sorted(s_gt_yc), sorted(s_w_error), color="red", linewidth=2, label="w error")
-        h_plot = plt.plot(sorted(s_gt_yc), sorted(s_h_error), color="blue", linewidth=2, label="h error")
-        size_plot = plt.plot(sorted(s_gt_yc), sorted(s_size_error), color="orange", linewidth=2, label="total error")
+        # l_plot = plt.plot(sorted(s_gt_yc), sorted(s_l_error), color="green", linewidth=2, label="l error")
+        # w_plot = plt.plot(sorted(s_gt_yc), sorted(s_w_error), color="red", linewidth=2, label="w error")
+        # h_plot = plt.plot(sorted(s_gt_yc), sorted(s_h_error), color="blue", linewidth=2, label="h error")
+        # size_plot = plt.plot(sorted(s_gt_yc), sorted(s_size_error), color="orange", linewidth=2, label="total error")
 
         plt.legend(loc="best", prop=font_legend)
 
-        # plt.savefig(os.path.join("%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_loc_curve.png"))
-        plt.savefig(os.path.join("%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_size_curve.png"))
+        plt.savefig(os.path.join("%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_loc_curve-%s.png"%str(MINOVERLAP)))
+        # plt.savefig(os.path.join("%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_size_curve-%s.png"%str(MINOVERLAP)))
         plt.close()
     
     if vis_curve:
@@ -194,7 +194,7 @@ for i in tqdm(range(len(list_det_txt))):  # 循环文件
 
 
     if vis_pos:
-        plt.savefig(os.path.join("%s/input-3D/visualize-pos" % mode, list_det_txt[i].split(".")[0] + "_vispos.png"))
+        plt.savefig(os.path.join("%s/input-3D/visualize-pos-%s" % (mode, str(MINOVERLAP)), list_det_txt[i].split(".")[0] + "_vispos-%s.png"%str(MINOVERLAP)))
         plt.close()
 
 # 记录三维尺寸和三维质心(定位)最后误差及精度
@@ -204,31 +204,32 @@ avg_loc_error = total_loc_error / MATCHED_NUM
 avg_size_precision = 1.0 - avg_size_error
 avg_loc_precision = 1.0 - avg_loc_error
 
-with open("./%s/input-3D/size_and_loc_precision.txt"%mode, "w") as f:
-    f.write("Head: ".ljust(35) + "L".ljust(22) + "W".ljust(22) + "H".ljust(22) + "CX".ljust(22) + "CY".ljust(22) + "CZ".ljust(22) +"\n")
-    for i in range(len(tp_sizes_dt)):
-        f.write("TP_SIZES_LOCS_DT: " + str("\t".join(map("{:20}".format, tp_sizes_dt[i]))) + "\t" + str("\t".join(map("{:20}".format,tp_locs_dt[i]))) + "\n")
-        f.write("TP_SIZES_LOCS_GT: " + str("\t".join(map("{:20}".format, tp_sizes_gt[i]))) + "\t" + str("\t".join(map("{:20}".format,tp_locs_gt[i]))) + "\n")
-        f.write("TP_SIZES_LOCS_ERROR_PRECISION: " + "\t" + str(single_size_error[i]).zfill(15) + "\t\t\t" + str(single_loc_error[i]).zfill(15) + "\t\t\t" + str(1.0-single_size_error[i]).zfill(15) + "\t\t\t" + str(1.0-single_loc_error[i]).zfill(15) + "\n")
-        f.write("LWH_ERROR/m: " + "\t" + str(l_error[i]).zfill(5) + "\t\t\t" + str(w_error[i]).zfill(5) + "\t\t\t" + str(h_error[i]).zfill(5) + "\n\n")
-    f.write("Avg_l_error: " + str(np.mean(l_error)) + "\n")
-    f.write("Avg_w_error: " + str(np.mean(w_error))+ "\n")
-    f.write("Avg_h_error: " + str(np.mean(h_error))+ "\n")
-    f.write("Avg_size_error: " + str(avg_size_error) + "\n")
-    f.write("Avg_loc_error: " + str(avg_loc_error) + "\n")
-    f.write("Avg_size_precision: " + str(avg_size_precision) + "\n")
-    f.write("Avg_loc_precision: " + str(avg_loc_precision) + "\n")
 
+if not os.path.exists("./%s/input-3D/size_and_loc_precision-%s.txt"%(mode, str(MINOVERLAP))):
+    with open("./%s/input-3D/size_and_loc_precision-%s.txt"%(mode, str(MINOVERLAP)), "w") as f:
+        f.write("Head: ".ljust(35) + "L".ljust(22) + "W".ljust(22) + "H".ljust(22) + "CX".ljust(22) + "CY".ljust(22) + "CZ".ljust(22) +"\n")
+        for i in range(len(tp_sizes_dt)):
+            f.write("TP_SIZES_LOCS_DT: " + str("\t".join(map("{:20}".format, tp_sizes_dt[i]))) + "\t" + str("\t".join(map("{:20}".format,tp_locs_dt[i]))) + "\n")
+            f.write("TP_SIZES_LOCS_GT: " + str("\t".join(map("{:20}".format, tp_sizes_gt[i]))) + "\t" + str("\t".join(map("{:20}".format,tp_locs_gt[i]))) + "\n")
+            f.write("TP_SIZES_LOCS_ERROR_PRECISION: " + "\t" + str(single_size_error[i]).zfill(15) + "\t\t\t" + str(single_loc_error[i]).zfill(15) + "\t\t\t" + str(1.0-single_size_error[i]).zfill(15) + "\t\t\t" + str(1.0-single_loc_error[i]).zfill(15) + "\n")
+            f.write("LWH_ERROR/m: " + "\t" + str(l_error[i]).zfill(5) + "\t\t\t" + str(w_error[i]).zfill(5) + "\t\t\t" + str(h_error[i]).zfill(5) + "\n\n")
+        f.write("Avg_l_error: " + str(np.mean(l_error)) + "\n")
+        f.write("Avg_w_error: " + str(np.mean(w_error))+ "\n")
+        f.write("Avg_h_error: " + str(np.mean(h_error))+ "\n")
+        f.write("Avg_size_error: " + str(avg_size_error) + "\n")
+        f.write("Avg_loc_error: " + str(avg_loc_error) + "\n")
+        f.write("Avg_size_precision: " + str(avg_size_precision) + "\n")
+        f.write("Avg_loc_precision: " + str(avg_loc_precision) + "\n")
 
-print("Avg_l_error: " + str(np.mean(l_error)))
-print("Avg_w_error: " + str(np.mean(w_error)))
-print("Avg_h_error: " + str(np.mean(h_error)))
+    print("Avg_l_error: " + str(np.mean(l_error)))
+    print("Avg_w_error: " + str(np.mean(w_error)))
+    print("Avg_h_error: " + str(np.mean(h_error)))
 
-print("Avg_size_error: " + str(avg_size_error))
-print("Avg_loc_error: " + str(avg_loc_error))
+    print("Avg_size_error: " + str(avg_size_error))
+    print("Avg_loc_error: " + str(avg_loc_error))
 
-print("Avg_size_precision: " + str(avg_size_precision))
-print("Avg_loc_precision: " + str(avg_loc_precision))
+    print("Avg_size_precision: " + str(avg_size_precision))
+    print("Avg_loc_precision: " + str(avg_loc_precision))
 
 
 
