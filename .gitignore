@@ -15,6 +15,7 @@
 /logs/
 
 /logs-no_iou_loss/
+/logs-no_iou_and_project_loss/
 /logs-all-modules/
 /logs-three-scenes-pre/
 

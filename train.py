@@ -91,14 +91,15 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
                 loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss + iou_loss
             else:
                 iou_loss = 0.0
-                loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss
+                loss = cls_loss + center_off_loss + vertex_loss + size_loss
+                #  + reproj_loss
 
             total_train_loss += loss.item()
             total_cls_loss += cls_loss.item()
             total_center_off_loss += center_off_loss.item()
             total_vertex_loss += vertex_loss.item()
             total_size_loss += size_loss.item()
-            total_reproj_loss += reproj_loss.item()
+            # total_reproj_loss += reproj_loss.item()
             if iou_type:
                 total_iou_loss += iou_loss.item()
 
@@ -153,7 +154,8 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
                     loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss + iou_loss
                 else:
                     iou_loss = 0.0
-                    loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss
+                    loss = cls_loss + center_off_loss + vertex_loss + size_loss
+                    #  + reproj_loss
 
                 val_loss += loss.item()
 

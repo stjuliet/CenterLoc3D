@@ -7,7 +7,7 @@ import cv2 as cv
 
 model = Bbox3dPred()
 
-mode = "val"  # 选择在验证集上还是在测试集上
+mode = "test"  # 选择在验证集上还是在测试集上
 
 # 测试集文件路径
 test_txt_path = "DATA2021_%s.txt" % mode
