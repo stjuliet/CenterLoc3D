@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 from tqdm import tqdm
 from utils import *
 
-mode = "val"  # 选择在验证集上还是在测试集上
+mode = "test"  # 选择在验证集上还是在测试集上
 
 # 获得类
 def get_classes(classes_path):

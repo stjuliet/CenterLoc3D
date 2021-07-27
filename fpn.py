@@ -99,12 +99,12 @@ class FPN(nn.Module):
         # forward函数中只能包含前向传播, 不能定义layer
         # 原始尺寸 -> 128*128*64
         self.P3_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[0])
-        self.P4_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[1])
-        self.P5_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[2])
-        self.P6_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[3])
-        self.P7_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[4])
+        # self.P4_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[1])
+        # self.P5_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[2])
+        # self.P6_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[3])
+        # self.P7_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[4])
 
-        self.no_merge_conv = nn.Conv2d(C3_channels//2, out_channels//4, kernel_size=3, stride=1, padding=1)
+        # self.no_merge_conv = nn.Conv2d(C3_channels//2, out_channels//4, kernel_size=3, stride=1, padding=1)
 
 
     def _make_convtrans_sequence(self, in_channels, final_out_channels, in_sizes, out_sizes = 128):
@@ -143,7 +143,7 @@ class FPN(nn.Module):
         P7 = self.P7_conv(P7_x)
 
         # # -------------------------多尺度特征融合-----------------------------#
-        # # 反卷积提取高分辨率特征层
+        # 反卷积提取高分辨率特征层
         # P3 = self.P3_convtrans(P3)
         # P4 = self.P4_convtrans(P4)
         # P5 = self.P5_convtrans(P5)
@@ -158,8 +158,7 @@ class FPN(nn.Module):
 
         # 去多尺度特征融合
         # 将P3上采样+卷积,从64*64*256到128*128*64
-        P3_unsample = self.unsample(P3)
-        P3_out = self.no_merge_conv(P3_unsample)
+        P3_out = self.P3_convtrans(P3)
 
         return P3_out
 

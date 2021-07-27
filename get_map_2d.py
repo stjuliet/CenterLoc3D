@@ -11,7 +11,7 @@ import numpy as np
 
 from utils import basic_diou, basic_ciou
 
-mode = "val"  # 选择在验证集上还是在测试集上
+mode = "test"  # 选择在验证集上还是在测试集上
 
 #----------------------------------------------------#
 #   用于计算mAP
