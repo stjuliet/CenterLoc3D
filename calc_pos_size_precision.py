@@ -181,8 +181,10 @@ for i in tqdm(range(len(list_det_txt))):  # 循环文件
         # 定位刻度
         if SCENE_NUM == 1:
             plt.yticks(np.arange(-0.1,1.6,0.3))
+            plt.ylim(-0.1,1.6)
         if SCENE_NUM == 2:
             plt.yticks(np.arange(-0.5,3.5,0.5))
+            plt.ylim(-0.5,3.5)
             
         xc_plot = plt.plot(sorted(s_gt_yc), sorted(s_xc_error), color="green", linewidth=2, label="X error")
         yc_plot = plt.plot(sorted(s_gt_yc), sorted(s_yc_error), color="red", linewidth=2, label="Y error")
@@ -229,6 +231,7 @@ for i in tqdm(range(len(list_det_txt))):  # 循环文件
     if vis_curve and i == len(list_det_txt)-1:
 
         plt.yticks(np.arange(-0.2,1,0.2))
+        plt.ylim(-0.2, 1.0)
         xc_plot = plt.plot(sorted(s_gt_yc), sorted(s_xc_error), color="green", linewidth=2, label="X error")
         yc_plot = plt.plot(sorted(s_gt_yc), sorted(s_yc_error), color="red", linewidth=2, label="Y error")
         zc_plot = plt.plot(sorted(s_gt_yc), sorted(s_zc_error), color="blue", linewidth=2, label="Z error")

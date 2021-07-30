@@ -26,7 +26,7 @@
 
 4. 运行data2script.py将真实标签生成DATA2021_train.txt、DATA2021_val.txt、DATA2021_test.txt用于训练读取标签数据
 
-5. 设置超参数，运行train.py开始训练
+5. 设置超参数，运行train.py开始训练（可设置断点恢复训练）
 
 ## 预测流程
 
@@ -34,10 +34,20 @@
 
 - single_predict.py --- 单张图像预测
 
-- batch_predict.py --- 批量图像预测
+- batch_predict.py --- 批量图像预测（带标签）
+
+- - batch_predict_no_anno.py --- 批量图像预测（不带标签）
 
 ## 评价指标
 
 - 2d/3d mAP
 
+step 1. 在box_predict.py中设置模型路径、backbone名称等参数
+
+step 2. 运行get_gt_txt_2d3d.py获得真实标签结果（写入test/input-2d(3d)/ground-truth中），运行batch_predict.py获得预测结果（写入test/input-2d(3d)/detection-results中）
+
+step 3. 分别运行get_map_2d.py、get_map_3d.py获得评价结果
+
 - 定位精度、三维物理尺寸精度
+
+在评价完2d/3d mAP的基础上，运行calc_pos_size_precision.py，可获得测试集中定位、三维物理尺寸的精度和误差，对于误差可以细化至分场景，并且能够输出定位俯视图、误差曲线图

@@ -208,7 +208,7 @@ class HourglassNet(nn.Module):
 
 if __name__ == "__main__":
     fp = torch.randn((1, 3, 512, 512))
-    model = HourglassNet(Bottleneck, num_stacks=8, num_blocks=1,
+    model = HourglassNet(Bottleneck, num_stacks=8, num_blocks=2,
                          num_classes=3)
     bt_hm, bt_center, bt_vertex, bt_size = model(fp)
     print(bt_center.shape)

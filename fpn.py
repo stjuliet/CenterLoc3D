@@ -99,10 +99,10 @@ class FPN(nn.Module):
         # forward函数中只能包含前向传播, 不能定义layer
         # 原始尺寸 -> 128*128*64
         self.P3_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[0])
-        # self.P4_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[1])
-        # self.P5_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[2])
-        # self.P6_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[3])
-        # self.P7_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[4])
+        self.P4_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[1])
+        self.P5_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[2])
+        self.P6_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[3])
+        self.P7_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[4])
 
         # self.no_merge_conv = nn.Conv2d(C3_channels//2, out_channels//4, kernel_size=3, stride=1, padding=1)
 
@@ -144,23 +144,23 @@ class FPN(nn.Module):
 
         # # -------------------------多尺度特征融合-----------------------------#
         # 反卷积提取高分辨率特征层
-        # P3 = self.P3_convtrans(P3)
-        # P4 = self.P4_convtrans(P4)
-        # P5 = self.P5_convtrans(P5)
-        # P6 = self.P6_convtrans(P6)
-        # P7 = self.P7_convtrans(P7)
+        P3 = self.P3_convtrans(P3)
+        P4 = self.P4_convtrans(P4)
+        P5 = self.P5_convtrans(P5)
+        P6 = self.P6_convtrans(P6)
+        P7 = self.P7_convtrans(P7)
 
-        # # [64, 128, 128]
-        # # 分配权重
-        # P_merge = 0.5 * P3 + 0.2 * P4 + 0.1 * P5 + 0.1 * P6 + 0.1 * P7
-        # return P_merge
+        # [64, 128, 128]
+        # 分配权重
+        P_merge = 0.5 * P3 + 0.2 * P4 + 0.1 * P5 + 0.1 * P6 + 0.1 * P7
+        return P_merge
         # # -------------------------多尺度特征融合-----------------------------#
 
         # 去多尺度特征融合
         # 将P3上采样+卷积,从64*64*256到128*128*64
-        P3_out = self.P3_convtrans(P3)
+        # P3_out = self.P3_convtrans(P3)
 
-        return P3_out
+        # return P3_out
 
 
 
@@ -276,7 +276,7 @@ if __name__ == "__main__":
     # resnet-50
     # model = KeyPointDetection("resnet", 2, num_classes=3)
     # efficientnet-b4
-    model = KeyPointDetection("efficientnet", 4, num_classes=3)
+    model = KeyPointDetection("efficientnet", 5, num_classes=3)
     bt_hm, bt_center, bt_vertex, bt_size = model(feature)
     print(bt_center.shape)
     print(bt_size.shape)
