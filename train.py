@@ -20,7 +20,7 @@ from PIL import Image, ImageDraw
 
 from fpn import KeyPointDetection
 from hourglass_official import HourglassNet, Bottleneck
-from loss import focal_loss, reg_l1_loss, reproject_l1_loss, reg_iou_loss
+from loss import focal_loss, reg_l1_loss, reproject_l1_loss, reg_iou_loss, reg_vp_loss
 from dataloader import Bbox3dDatasets, bbox3d_dataset_collate
 
 
@@ -59,6 +59,7 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
     total_iou_loss = 0
     total_train_loss = 0
     val_loss = 0
+    total_vp_loss = 0
 
     net.train()
     with tqdm(total=epoch_size,desc=f'Epoch {epoch + 1}/{Epoch}',postfix=dict,mininterval=0.3) as pbar:
@@ -81,7 +82,7 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
             vertex_loss = 0.1*reg_l1_loss(pred_vertex, batch_vertex_regs, batch_center_masks, index = 16)
             size_loss = 0.1*reg_l1_loss(pred_size, batch_size_regs, batch_center_masks, index = 3)
             reproj_loss = 0.1*reproject_l1_loss(pred_vertex, batch_calib_matrixs, pred_size, batch_center_masks, batch_raw_box_base_points, 16, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
-            
+            vp_loss = reg_vp_loss(pred_vertex, batch_vertex_regs, batch_center_masks, 1, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
             if iou_type:
                 iou_loss = reg_iou_loss(iou_type, pred_vertex, batch_vertex_regs, batch_center_masks, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
                 if iou_loss > 1.0:
@@ -91,15 +92,17 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
                 loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss + iou_loss
             else:
                 iou_loss = 0.0
-                loss = cls_loss + center_off_loss + vertex_loss + size_loss
+                loss = cls_loss + center_off_loss + vertex_loss + vp_loss
+                # + size_loss
                 #  + reproj_loss
 
             total_train_loss += loss.item()
             total_cls_loss += cls_loss.item()
             total_center_off_loss += center_off_loss.item()
             total_vertex_loss += vertex_loss.item()
-            total_size_loss += size_loss.item()
-            total_reproj_loss += reproj_loss.item()
+            total_vp_loss += vp_loss.item()
+            # total_size_loss += size_loss.item()
+            # total_reproj_loss += reproj_loss.item()
             if iou_type:
                 total_iou_loss += iou_loss.item()
 
@@ -114,9 +117,10 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
                                 'cls_loss'              : total_cls_loss / (iteration + 1),
                                 'center_loss'           : total_center_off_loss / (iteration + 1),
                                 'vertex_loss'           : total_vertex_loss / (iteration + 1),
-                                'size_loss'             : total_size_loss / (iteration + 1),
-                                'reproj_loss'           : total_reproj_loss / (iteration + 1),
-                                '%s_loss' % iou_type    : total_iou_loss / (iteration + 1),
+                                'vp_loss'               : total_vp_loss / (iteration+1),
+                                # 'size_loss'             : total_size_loss / (iteration + 1),
+                                # 'reproj_loss'           : total_reproj_loss / (iteration + 1),
+                                # '%s_loss' % iou_type    : total_iou_loss / (iteration + 1),
                                 'lr'                    : get_lr(optimizer)})
             pbar.update(1)
 
@@ -144,17 +148,19 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
                 vertex_loss = 0.1*reg_l1_loss(pred_vertex, batch_vertex_regs, batch_center_masks, index = 16)
                 size_loss = 0.1*reg_l1_loss(pred_size, batch_size_regs, batch_center_masks, index = 3)
                 reproj_loss = 0.1*reproject_l1_loss(pred_vertex, batch_calib_matrixs, pred_size, batch_center_masks, batch_raw_box_base_points, 16, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
-                
+                vp_loss = reg_vp_loss(pred_vertex, batch_vertex_regs, batch_center_masks, 1, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
                 if iou_type:
                     iou_loss = reg_iou_loss(iou_type, pred_vertex, batch_vertex_regs, batch_center_masks, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
                     if iou_loss > 1.0:
                         iou_loss = torch.log(iou_loss)
                     else:
                         pass
-                    loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss + iou_loss
+                    loss = cls_loss + center_off_loss + vertex_loss + vp_loss
+                    #  + size_loss + reproj_loss + iou_loss
                 else:
                     iou_loss = 0.0
-                    loss = cls_loss + center_off_loss + vertex_loss + size_loss
+                    loss = cls_loss + center_off_loss + vertex_loss + vp_loss
+                    # + size_loss
                     #  + reproj_loss
 
                 val_loss += loss.item()
@@ -236,15 +242,10 @@ def train_from_checkpoint(model_path, model):
 
 if __name__ == "__main__":
 
-    # 输入图片的大小
-    input_shape = (512, 512, 3)
-    output_shape = (128, 128)
-
     # 创建训练模型保存文件夹
     if not os.path.exists("./logs"):
         os.makedirs("./logs")
     
-
     # 类别文件
     classes_path = 'model_data/classes.txt'
 
@@ -255,16 +256,19 @@ if __name__ == "__main__":
     # 是否使用仅backbone的预训练权重
     pretrain = True
 
+    # 是否使用可变形卷积
+    deform = False
+
     # 是否使用Cuda
     Cuda = True
 
     # 是否断点续训练
-    train_cont = True
+    train_cont = False
     train_cont_model_path = "logs/efficientnetb5-Epoch60-ciou-Total_train_Loss7.4935-Val_Loss7.3983.pth"
 
     # 是否使用iou loss, 不使用设置为None, 
     # 使用则从{iou, giou, diou, ciou, cdiou}中选取任意一个
-    iou_loss_type = "ciou"
+    iou_loss_type = None
     if iou_loss_type:
         assert iou_loss_type in ["iou", "giou", "diou", "ciou", "cdiou"]
 
@@ -274,14 +278,26 @@ if __name__ == "__main__":
                      "efficientnetb3": 3, "efficientnetb4": 4, "efficientnetb5": 5, "efficientnetb6": 6, "efficientnetb7": 7}
     
     # 指定backbone
-    backbone = "efficientnetb5"
-    list_backbones = list(backbone_resnet_index.keys()) + list(backbone_efficientnet_index.keys()) + ["hourglass"]
+    backbone = "darknet"
+    list_backbones = list(backbone_resnet_index.keys()) + list(backbone_efficientnet_index.keys()) + ["hourglass", "darknet"]
     assert backbone in list_backbones
     
+    if backbone == "darknet":
+        # 输入图片的大小
+        input_shape = (416, 416, 3)
+        output_shape = (104, 104)
+    else:
+        # 输入图片的大小
+        input_shape = (512, 512, 3)
+        output_shape = (128, 128)
 
     # 根据模型设置batch_size
-    batch_size_dict = {"resnet":[16, 8], "efficientnet":[16, 4], "hourglass":[2, 1]}
-
+    batch_size_dict = {"resnet":[16, 8], "efficientnet":[16, 4], "hourglass":[2, 1], "darknet":[16, 8]}
+    if deform:
+        batch_size_dict.update({"darknet":[8, 4]})
+    else:
+        batch_size_dict.update({"darknet": [16, 8]})
+        
 
     if backbone[:-2] == "resnet":
         model = KeyPointDetection(model_name=backbone[:-2], model_index=backbone_resnet_index[backbone], num_classes=num_classes, pretrained_weights=pretrain)
@@ -305,7 +321,9 @@ if __name__ == "__main__":
             model_dict.update(final_model_dict)  # 更新到原始模型字典中
             model.load_state_dict(model_dict, strict=False)
             print('Finished!')
-
+    if backbone == "darknet":
+        model = KeyPointDetection(model_name=backbone, model_index=0, num_classes=num_classes, pretrained_weights=pretrain, deform=deform)
+        batch_size_list = batch_size_dict[backbone]
     # 断点续训练
     # 1、只包含模型参数
     # model_path = "logs\Epoch120-Total_train_Loss2.7936-Val_Loss4.7216.pth"
@@ -353,14 +371,15 @@ if __name__ == "__main__":
 
     # 构建绘制loss曲线图writer
     writer = SummaryWriter(log_dir='train-logs',flush_secs=60)
-    if Cuda:
-        graph_inputs = torch.from_numpy(np.random.rand(1,3,input_shape[0],input_shape[1])).type(torch.FloatTensor).cuda()
-    else:
-        graph_inputs = torch.from_numpy(np.random.rand(1,3,input_shape[0],input_shape[1])).type(torch.FloatTensor)
-    writer.add_graph(model, (graph_inputs,))
+    if not deform:
+        if Cuda:
+            graph_inputs = torch.from_numpy(np.random.rand(1,3,input_shape[0],input_shape[1])).type(torch.FloatTensor).cuda()
+        else:
+            graph_inputs = torch.from_numpy(np.random.rand(1,3,input_shape[0],input_shape[1])).type(torch.FloatTensor)
+        writer.add_graph(model, (graph_inputs,))
 
-    train_tensorboard_step = 23.46*1000
-    val_tensorboard_step = 60
+    train_tensorboard_step = 1
+    val_tensorboard_step = 1
     
     #   主干特征提取网络特征通用，冻结训练可以加快训练速度
     #   也可以在训练初期防止权值被破坏。

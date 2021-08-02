@@ -5,6 +5,8 @@ import torch.nn as nn
 from torchsummary import summary
 from nets.resnets import resnet18, resnet34, resnet50, resnet101, resnet152
 from nets.efficientnet import EfficientNet as EffNet
+from nets.darknet import darknet53
+from deform_conv import DeformConv2d
 
 
 class Resnet(nn.Module):
@@ -78,21 +80,32 @@ class FPN(nn.Module):
     input: 3 feature maps
     output: 5 features maps -> ConvTranspose2d to 1 feature map (for detection head)
     '''
-    def __init__(self, C3_channels, C4_channels, C5_channels, out_channels = 256):
+    def __init__(self, C3_channels, C4_channels, C5_channels, out_channels = 256, deform=False):
         super(FPN, self).__init__()
         self.final_out_channels = 64  # 最终特征图尺寸
         self.fpchannels = [64, 32, 16, 8, 4]  # 金字塔网络多尺度特征层尺寸列表
 
-        self.C3_conv1 = nn.Conv2d(C3_channels, out_channels, kernel_size=1, stride=1, padding=0) # 1*1卷积,保证feature map尺寸不变
-        self.C3_conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1) # 3*3卷积,保证feature map尺寸不变
-        self.C4_conv1 = nn.Conv2d(C4_channels, out_channels, kernel_size=1, stride=1, padding=0) # 1*1卷积,保证feature map尺寸不变
-        self.C4_conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1) # 3*3卷积,保证feature map尺寸不变
-        self.C5_conv1 = nn.Conv2d(C5_channels, out_channels, kernel_size=1, stride=1, padding=0) # 1*1卷积,保证feature map尺寸不变
-        self.C5_conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1) # 3*3卷积,保证feature map尺寸不变
-        self.P6_conv = nn.Conv2d(C5_channels, out_channels, kernel_size=3, stride=2, padding=1) # 3*3卷积,stride=2, 减小feature map尺寸
+        if deform:
+            self.C3_conv1 = DeformConv2d(C3_channels, out_channels, kernel_size=1, padding=0, stride=1, bias=False, modulation=False) # 1*1卷积,保证feature map尺寸不变
+            self.C3_conv2 = DeformConv2d(out_channels, out_channels, kernel_size=3, padding=1, stride=1, bias=False, modulation=False) # 3*3卷积,保证feature map尺寸不变
+            self.C4_conv1 = DeformConv2d(C4_channels, out_channels, kernel_size=1, padding=0, stride=1, bias=False, modulation=False) # 1*1卷积,保证feature map尺寸不变
+            self.C4_conv2 = DeformConv2d(out_channels, out_channels, kernel_size=3, padding=1, stride=1, bias=False, modulation=False) # 3*3卷积,保证feature map尺寸不变
+            self.C5_conv1 = DeformConv2d(C5_channels, out_channels, kernel_size=1, padding=0, stride=1, bias=False, modulation=False) # 1*1卷积,保证feature map尺寸不变
+            self.C5_conv2 = DeformConv2d(out_channels, out_channels, kernel_size=3, padding=1, stride=1, bias=False, modulation=False) # 3*3卷积,保证feature map尺寸不变
+            self.P6_conv = DeformConv2d(C5_channels, out_channels, kernel_size=3, padding=1, stride=2, bias=False, modulation=False) # 3*3卷积,stride=2, 减小feature map尺寸
+            self.P7_conv = DeformConv2d(out_channels, out_channels, kernel_size=3, padding=1, stride=2, bias=False, modulation=False) # 3*3卷积,stride=2, 减小feature map尺寸
+        else:
+            self.C3_conv1 = nn.Conv2d(C3_channels, out_channels, kernel_size=1, stride=1, padding=0) # 1*1卷积,保证feature map尺寸不变
+            self.C3_conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1) # 3*3卷积,保证feature map尺寸不变
+            self.C4_conv1 = nn.Conv2d(C4_channels, out_channels, kernel_size=1, stride=1, padding=0) # 1*1卷积,保证feature map尺寸不变
+            self.C4_conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1) # 3*3卷积,保证feature map尺寸不变
+            self.C5_conv1 = nn.Conv2d(C5_channels, out_channels, kernel_size=1, stride=1, padding=0) # 1*1卷积,保证feature map尺寸不变
+            self.C5_conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1) # 3*3卷积,保证feature map尺寸不变
+            self.P6_conv = nn.Conv2d(C5_channels, out_channels, kernel_size=3, stride=2, padding=1) # 3*3卷积,stride=2, 减小feature map尺寸
+            self.P7_conv = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=2, padding=1) # 3*3卷积,stride=2, 减小feature map尺寸
         # inplace=True 节约反复申请和释放内存的资源消耗, 但是在训练时反向传播会导致无法求导, pytorch 0.4之后的版本均会有该问题
         self.P7_relu = nn.ReLU()
-        self.P7_conv = nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=2, padding=1) # 3*3卷积,stride=2, 减小feature map尺寸
+
         self.unsample = nn.Upsample(scale_factor=2)  # 2倍上采样
 
         # 针对P3--P7特征图 做反卷积
@@ -101,8 +114,8 @@ class FPN(nn.Module):
         self.P3_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[0])
         self.P4_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[1])
         self.P5_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[2])
-        self.P6_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[3])
-        self.P7_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[4])
+        # self.P6_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[3])
+        # self.P7_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[4])
 
         # self.no_merge_conv = nn.Conv2d(C3_channels//2, out_channels//4, kernel_size=3, stride=1, padding=1)
 
@@ -147,12 +160,14 @@ class FPN(nn.Module):
         P3 = self.P3_convtrans(P3)
         P4 = self.P4_convtrans(P4)
         P5 = self.P5_convtrans(P5)
-        P6 = self.P6_convtrans(P6)
-        P7 = self.P7_convtrans(P7)
+        # P6 = self.P6_convtrans(P6)
+        # P7 = self.P7_convtrans(P7)
 
         # [64, 128, 128]
         # 分配权重
-        P_merge = 0.5 * P3 + 0.2 * P4 + 0.1 * P5 + 0.1 * P6 + 0.1 * P7
+        # P_merge = 0.5 * P3 + 0.2 * P4 + 0.1 * P5 + 0.1 * P6 + 0.1 * P7
+        P_merge = 0.5 * P3 + 0.3 * P4 + 0.2 * P5
+
         return P_merge
         # # -------------------------多尺度特征融合-----------------------------#
 
@@ -220,9 +235,10 @@ class KeyPointDetection(nn.Module):
     '''
     inplementation of the network (4 components)
     '''
-    def __init__(self, model_name, model_index, num_classes, pretrained_weights = False):
+    def __init__(self, model_name, model_index, num_classes, pretrained_weights = False, deform=False):
         super(KeyPointDetection, self).__init__()
         self.pretrained_weights = pretrained_weights
+        self.deform = deform
         if model_name == "resnet":
             self.backbone = Resnet(model_index, pretrained_weights)
             fpn_size_dict = {
@@ -252,8 +268,12 @@ class KeyPointDetection(nn.Module):
             #         C5  16, 16, 320
             #-------------------------------------------#
             self.backbone = EfficientNet(self.backbone_phi[model_index], pretrained_weights)
+        
+        if model_name == "darknet":
+            self.backbone = darknet53(pretrained_weights, deform)
+            fpn_size_dict = {0: [256, 512, 1024]}[model_index]
 
-        self.fpn = FPN(fpn_size_dict[0], fpn_size_dict[1], fpn_size_dict[2])
+        self.fpn = FPN(fpn_size_dict[0], fpn_size_dict[1], fpn_size_dict[2], 256, self.deform)
         self.detection_head = DetectionHead(in_channels=64, num_classes=num_classes)
     
     def freeze_backbone(self):
@@ -272,13 +292,19 @@ class KeyPointDetection(nn.Module):
 
 
 if __name__ == "__main__":
-    feature = torch.randn((1, 3, 512, 512))
+    # feature = torch.randn((1, 3, 512, 512))
     # resnet-50
     # model = KeyPointDetection("resnet", 2, num_classes=3)
-    # efficientnet-b4
-    model = KeyPointDetection("efficientnet", 5, num_classes=3)
+    # efficientnet-b5
+    # model = KeyPointDetection("efficientnet", 5, num_classes=3)
+
+
+    # darknet-53(input:416*416)
+    feature = torch.randn((1, 3, 416, 416))
+    model = KeyPointDetection("darknet", 0, num_classes=3, pretrained_weights=True, deform=True)
+
     bt_hm, bt_center, bt_vertex, bt_size = model(feature)
     print(bt_center.shape)
     print(bt_size.shape)
     # 输出summary的时候，model中返回特征图不能以list形式打包返回
-    print(summary(model,(3, 512, 512), batch_size=1, device='cpu'))
+    print(summary(model,(3, 416, 416), batch_size=1, device='cpu'))

@@ -672,6 +672,45 @@ def gaussian_radius(det_size, min_overlap=0.7):
     return min(r1, r2, r3)
 # -----------------------------高斯核函数-----------------------------------------------------#
 
+def intersect_cross(k0, b0, k1, b1):
+    """功能 : 求取两个直线的交点，输入是两条直线: y=k*x+b"""
+    # if np.fabs(k0 - k1) < 1e-6:  # 两斜率太接近, 不能求交点
+    #     return None
+    cross_x = (b0 - b1)/(k1-k0+1e-6)
+    cross_y = k0 * cross_x + b0
+    cross = (cross_x, cross_y)
+    return cross
+
+
+def get_vanish_point(vanish_lines):
+    """功能 : 求取输入直线两两交点，输入直线格式: y=k*x+b"""
+    vanish_points = []
+    for i in range(len(vanish_lines) - 1):
+        k0, b0 = vanish_lines[i]
+        for j in range(i + 1, len(vanish_lines)):
+            k1, b1 = vanish_lines[j]
+            cross = intersect_cross(k0, b0, k1, b1)
+            if cross is not None:
+                vanish_points.append((int(cross[0]), int(cross[1])))
+    vanish_points = np.array(vanish_points)
+    vanish_point = np.mean(vanish_points, 0)
+    return vanish_point
+
+def get_distance_from_point_to_line(point, line_point1, line_point2):
+    #对于两点坐标为同一点时,返回点与点的距离
+    if line_point1 == line_point2:
+        point_array = np.array(point)
+        point1_array = np.array(line_point1)
+        return np.linalg.norm(point_array-point1_array)
+    #计算直线的三个参数
+    A = line_point2[1] - line_point1[1]
+    B = line_point1[0] - line_point2[0]
+    C = (line_point1[1] - line_point2[1]) * line_point1[0] + \
+        (line_point2[0] - line_point1[0]) * line_point1[1]
+    #根据点到直线的距离公式计算距离
+    distance = np.abs(A * point[0] + B * point[1] + C) / (np.sqrt(A**2 + B**2))
+    return distance
+
 
 if __name__ == "__main__":
     calib_xml_path = "E:\\PythonCodes\\bbox3d_annotation_tools\\session6_right_data\\calib\\session6_right_calibParams.xml"
