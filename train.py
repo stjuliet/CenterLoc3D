@@ -264,7 +264,7 @@ if __name__ == "__main__":
 
     # 是否使用iou loss, 不使用设置为None, 
     # 使用则从{iou, giou, diou, ciou, cdiou}中选取任意一个
-    iou_loss_type = None
+    iou_loss_type = "ciou"
     if iou_loss_type:
         assert iou_loss_type in ["iou", "giou", "diou", "ciou", "cdiou"]
 
