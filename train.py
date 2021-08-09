@@ -82,7 +82,7 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
             vertex_loss = 0.1*reg_l1_loss(pred_vertex, batch_vertex_regs, batch_center_masks, index = 16)
             size_loss = 0.1*reg_l1_loss(pred_size, batch_size_regs, batch_center_masks, index = 3)
             reproj_loss = 0.1*reproject_l1_loss(pred_vertex, batch_calib_matrixs, pred_size, batch_center_masks, batch_raw_box_base_points, 16, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
-            vp_loss = reg_vp_loss(pred_vertex, batch_vertex_regs, batch_center_masks, 1, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
+            # vp_loss = reg_vp_loss(pred_vertex, batch_vertex_regs, batch_center_masks, 1, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
             if iou_type:
                 iou_loss = reg_iou_loss(iou_type, pred_vertex, batch_vertex_regs, batch_center_masks, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
                 if iou_loss > 1.0:
@@ -92,17 +92,15 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
                 loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss + iou_loss
             else:
                 iou_loss = 0.0
-                loss = cls_loss + center_off_loss + vertex_loss + vp_loss
-                # + size_loss
-                #  + reproj_loss
+                loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss
 
             total_train_loss += loss.item()
             total_cls_loss += cls_loss.item()
             total_center_off_loss += center_off_loss.item()
             total_vertex_loss += vertex_loss.item()
-            total_vp_loss += vp_loss.item()
-            # total_size_loss += size_loss.item()
-            # total_reproj_loss += reproj_loss.item()
+            total_size_loss += size_loss.item()
+            total_reproj_loss += reproj_loss.item()
+            # total_vp_loss += vp_loss.item()
             if iou_type:
                 total_iou_loss += iou_loss.item()
 
@@ -117,10 +115,10 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
                                 'cls_loss'              : total_cls_loss / (iteration + 1),
                                 'center_loss'           : total_center_off_loss / (iteration + 1),
                                 'vertex_loss'           : total_vertex_loss / (iteration + 1),
-                                'vp_loss'               : total_vp_loss / (iteration+1),
-                                # 'size_loss'             : total_size_loss / (iteration + 1),
-                                # 'reproj_loss'           : total_reproj_loss / (iteration + 1),
-                                # '%s_loss' % iou_type    : total_iou_loss / (iteration + 1),
+                                # 'vp_loss'               : total_vp_loss / (iteration+1),
+                                'size_loss'             : total_size_loss / (iteration + 1),
+                                'reproj_loss'           : total_reproj_loss / (iteration + 1),
+                                '%s_loss' % iou_type    : total_iou_loss / (iteration + 1),
                                 'lr'                    : get_lr(optimizer)})
             pbar.update(1)
 
@@ -148,20 +146,17 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
                 vertex_loss = 0.1*reg_l1_loss(pred_vertex, batch_vertex_regs, batch_center_masks, index = 16)
                 size_loss = 0.1*reg_l1_loss(pred_size, batch_size_regs, batch_center_masks, index = 3)
                 reproj_loss = 0.1*reproject_l1_loss(pred_vertex, batch_calib_matrixs, pred_size, batch_center_masks, batch_raw_box_base_points, 16, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
-                vp_loss = reg_vp_loss(pred_vertex, batch_vertex_regs, batch_center_masks, 1, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
+                # vp_loss = reg_vp_loss(pred_vertex, batch_vertex_regs, batch_center_masks, 1, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
                 if iou_type:
                     iou_loss = reg_iou_loss(iou_type, pred_vertex, batch_vertex_regs, batch_center_masks, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
                     if iou_loss > 1.0:
                         iou_loss = torch.log(iou_loss)
                     else:
                         pass
-                    loss = cls_loss + center_off_loss + vertex_loss + vp_loss
-                    #  + size_loss + reproj_loss + iou_loss
+                    loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss + iou_loss
                 else:
                     iou_loss = 0.0
-                    loss = cls_loss + center_off_loss + vertex_loss + vp_loss
-                    # + size_loss
-                    #  + reproj_loss
+                    loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss
 
                 val_loss += loss.item()
 
@@ -204,6 +199,7 @@ def train_from_checkpoint(model_path, model):
     model_dict.update(update_model_dict)
     model.load_state_dict(model_dict)
 
+
     optimizer = optim.Adam(model.parameters(), lr=1e-4, weight_decay=5e-4)
     # optimizer.load_state_dict(optimizer_dict)
 
@@ -211,7 +207,7 @@ def train_from_checkpoint(model_path, model):
 
     Batch_size = batch_size_list[1]
     Freeze_Epoch = start_epoch
-    Unfreeze_Epoch = start_epoch + 60
+    Unfreeze_Epoch = 120 - start_epoch + 1
 
     lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=3, verbose=True)
 
@@ -278,7 +274,7 @@ if __name__ == "__main__":
                      "efficientnetb3": 3, "efficientnetb4": 4, "efficientnetb5": 5, "efficientnetb6": 6, "efficientnetb7": 7}
     
     # 指定backbone
-    backbone = "darknet"
+    backbone = "resnet50"
     list_backbones = list(backbone_resnet_index.keys()) + list(backbone_efficientnet_index.keys()) + ["hourglass", "darknet"]
     assert backbone in list_backbones
     
