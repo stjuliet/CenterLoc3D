@@ -17,7 +17,7 @@ SCENE_NUM = 0
 
 # 是否导出定位可视化
 vis_pos = False
-vis_curve = True
+vis_curve = False
 
 det_txt_dir = "%s/input-3D/detection-results" % mode
 gt_txt_dir = "%s/input-3D/ground-truth" % mode
@@ -36,6 +36,8 @@ if not os.path.exists("./%s/input-3D/size_and_loc_precision-%s.txt"%(mode, str(M
 
 list_det_txt = sorted(os.listdir(det_txt_dir))
 list_gt_txt = sorted(os.listdir(gt_txt_dir))
+
+match_img_ids = []
 
 total_size_precision, total_loc_precision = 0.0, 0.0
 single_size_precision, single_loc_precision = [], []
@@ -66,8 +68,6 @@ font_label = {'family': 'Times New Roman',
 valid_pers = [[120, 25], [120, 25], [60, 15]]
 
 for i in tqdm(range(len(list_det_txt))):  # 循环文件
-
-
     # 每个场景生成一个折线图保存！
     if vis_curve:
         fig, ax = plt.subplots(figsize=(20,15),dpi=100)
@@ -134,6 +134,9 @@ for i in tqdm(range(len(list_det_txt))):  # 循环文件
 
             if ov > MINOVERLAP:  # 标记匹配到
                 MATCHED_NUM += 1
+                # 保存匹配到的样本属于哪一张图
+                match_img_ids.append(list_det_txt[i])
+
                 l_dt, w_dt, h_dt = np.array(det[26:29]).astype(np.float)
                 cx_dt, cy_dt, cz_dt = np.array(det[29:32]).astype(np.float)
                 l_gt, w_gt, h_gt = np.array(gt[25:28]).astype(np.float)
@@ -275,6 +278,7 @@ if record_txt:
 
     # 单个匹配到的样本数据
     for i in range(len(tp_sizes_dt)):
+        f.write("IMG_ID: " + match_img_ids[i] + "\n")
         f.write("TP_SIZES_LOCS_DT: " + str("\t".join(map("{:20}".format, tp_sizes_dt[i]))) + "\t" + str("\t".join(map("{:20}".format,tp_locs_dt[i]))) + "\n")
         f.write("TP_SIZES_LOCS_GT: " + str("\t".join(map("{:20}".format, tp_sizes_gt[i]))) + "\t" + str("\t".join(map("{:20}".format,tp_locs_gt[i]))) + "\n")
         f.write("TP_SIZES_LOCS_PRECISION: " + "\t" + str(single_size_precision[i]).zfill(15) + "\t\t\t" + str(single_loc_precision[i]).zfill(15) + "\n")

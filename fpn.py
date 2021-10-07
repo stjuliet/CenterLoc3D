@@ -114,8 +114,8 @@ class FPN(nn.Module):
         self.P3_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[0])
         self.P4_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[1])
         self.P5_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[2])
-        # self.P6_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[3])
-        # self.P7_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[4])
+        self.P6_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[3])
+        self.P7_convtrans = self._make_convtrans_sequence(out_channels, self.final_out_channels, self.fpchannels[4])
 
         # self.no_merge_conv = nn.Conv2d(C3_channels//2, out_channels//4, kernel_size=3, stride=1, padding=1)
 
@@ -160,13 +160,13 @@ class FPN(nn.Module):
         P3 = self.P3_convtrans(P3)
         P4 = self.P4_convtrans(P4)
         P5 = self.P5_convtrans(P5)
-        # P6 = self.P6_convtrans(P6)
-        # P7 = self.P7_convtrans(P7)
+        P6 = self.P6_convtrans(P6)
+        P7 = self.P7_convtrans(P7)
 
         # [64, 128, 128]
         # 分配权重
-        # P_merge = 0.5 * P3 + 0.2 * P4 + 0.1 * P5 + 0.1 * P6 + 0.1 * P7
-        P_merge = 0.5 * P3 + 0.3 * P4 + 0.2 * P5
+        P_merge = 0.5 * P3 + 0.2 * P4 + 0.1 * P5 + 0.1 * P6 + 0.1 * P7
+        # P_merge = 0.5 * P3 + 0.3 * P4 + 0.2 * P5
 
         return P_merge
         # # -------------------------多尺度特征融合-----------------------------#

@@ -25,9 +25,9 @@ def preprocess_image(image):
 # model_path、classes_path和backbone
 class Bbox3dPred(object):
     _defaults = {
-        "model_path"        : 'logs/efficientnetb5-Epoch104-ciou-Total_train_Loss2.5512-Val_Loss3.8156.pth',
+        "model_path"        : 'logs-all-modules/resnet50-Epoch108-ciou-Total_train_Loss1.8616-Val_Loss3.0464.pth',
         "classes_path"      : 'model_data/classes.txt',
-        "backbone"          : "efficientnetb5",
+        "backbone"          : "resnet50",
         "image_size"        : [512,512,3],
         "confidence"        : 0.3,
         # backbone为resnet50时建议设置为True
@@ -98,7 +98,7 @@ class Bbox3dPred(object):
                 self.colors))
 
     # 检测图片
-    def detect_image(self, image, image_id, is_record_result, calib_path = None, mode = "test"):
+    def detect_image(self, image, image_id, is_draw_gt, is_record_result, calib_path = None, mode = "test"):
         image_shape = np.array(np.shape(image)[0:2])
 
         # 给图像增加灰条，实现不失真的resize
@@ -273,6 +273,40 @@ class Bbox3dPred(object):
 
             calib_matrix = read_calib_params(calib_path, image_shape[1], image_shape[0])
 
+        if is_draw_gt:
+            draw_gt = ImageDraw.Draw(image)
+            if os.path.exists("./%s/gt-for-draw/"%mode+image_id+"_vt2d.txt"):
+                with open("./%s/gt-for-draw/"%mode+image_id+"_vt2d.txt") as f_draw_gt:
+                    f_draw_lines = f_draw_gt.readlines()
+                    for draw_line in f_draw_lines:
+                        gt_vertex_2d = list(map(int, draw_line.split(" ")[:16]))
+                        gt_cx, gt_cy = list(map(int, draw_line.split(" ")[16:18]))
+
+                        draw_gt.ellipse((gt_cx - 3, gt_cy - 3, gt_cx + 3, gt_cy + 3), outline=(255, 0, 255), width=2)
+
+                        # 3D box
+                        # 宽度方向
+                        # 0-1  2-3  4-5  6-7
+                        # if (vertex[14] <= cx < = vertex[2]) and (vertex[13] <= cy <= vertex[1]):
+                        draw_gt.line([gt_vertex_2d[0], gt_vertex_2d[1], gt_vertex_2d[2], gt_vertex_2d[3]], fill=(255, 0, 255), width=2)
+                        draw_gt.line([gt_vertex_2d[4], gt_vertex_2d[5], gt_vertex_2d[6], gt_vertex_2d[7]], fill=(255, 0, 255), width=2)
+                        draw_gt.line([gt_vertex_2d[8], gt_vertex_2d[9], gt_vertex_2d[10], gt_vertex_2d[11]], fill=(255, 0, 255), width=2)
+                        draw_gt.line([gt_vertex_2d[12], gt_vertex_2d[13], gt_vertex_2d[14], gt_vertex_2d[15]], fill=(255, 0, 255), width=2)
+
+                        # 长度方向
+                        # 0-3 1-2 4-7 5-6
+                        draw_gt.line([gt_vertex_2d[0], gt_vertex_2d[1], gt_vertex_2d[6], gt_vertex_2d[7]], fill=(255, 0, 255), width=2)
+                        draw_gt.line([gt_vertex_2d[2], gt_vertex_2d[3], gt_vertex_2d[4], gt_vertex_2d[5]], fill=(255, 0, 255), width=2)
+                        draw_gt.line([gt_vertex_2d[8], gt_vertex_2d[9], gt_vertex_2d[14], gt_vertex_2d[15]], fill=(255, 0, 255), width=2)
+                        draw_gt.line([gt_vertex_2d[10], gt_vertex_2d[11], gt_vertex_2d[12], gt_vertex_2d[13]], fill=(255, 0, 255), width=2)
+
+                        # 高度方向
+                        # 0-4 1-5 2-6 3-7
+                        draw_gt.line([gt_vertex_2d[0], gt_vertex_2d[1], gt_vertex_2d[8], gt_vertex_2d[9]], fill=(255, 0, 255), width=2)
+                        draw_gt.line([gt_vertex_2d[2], gt_vertex_2d[3], gt_vertex_2d[10], gt_vertex_2d[11]], fill=(255, 0, 255), width=2)
+                        draw_gt.line([gt_vertex_2d[4], gt_vertex_2d[5], gt_vertex_2d[12], gt_vertex_2d[13]], fill=(255, 0, 255), width=2)
+                        draw_gt.line([gt_vertex_2d[6], gt_vertex_2d[7], gt_vertex_2d[14], gt_vertex_2d[15]], fill=(255, 0, 255), width=2)
+            del draw_gt
 
         for i in range(len(top_label_indices)):
             predicted_class = self.class_names[int(top_label_indices[i])]

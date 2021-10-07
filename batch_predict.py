@@ -7,13 +7,15 @@ import cv2 as cv
 
 model = Bbox3dPred()
 
-mode = "val"  # 选择在验证集上还是在测试集上
+mode = "test"  # 选择在验证集上还是在测试集上
 
 # 测试集文件路径
 test_txt_path = "DATA2021_%s.txt" % mode
 
 # 是否记录测试结果，用于评价map
 record_result = True
+# 是否绘制真实值
+draw_gt = True
 # 是否保存测试结果图片
 save_test_img = True
 
@@ -25,7 +27,7 @@ with open(test_txt_path, "r") as fread:
             image = Image.open(single_test_file_path.split(" ")[0])
             image_id = single_test_file_path.split(" ")[0].split("/")[-1][:-4]
             calib_path = single_test_file_path.split(" ")[1]
-            r_image, r_heatmap, proc_time = model.detect_image(image, image_id, record_result, calib_path, mode)
+            r_image, r_heatmap, proc_time = model.detect_image(image, image_id, draw_gt, record_result, calib_path, mode)
             total_proc_time += proc_time
             if save_test_img:
                 r_image.save("./%s/input-2D/images-optional/"%mode + str(single_test_file_path.split(" ")[0].split("/")[-1]))
