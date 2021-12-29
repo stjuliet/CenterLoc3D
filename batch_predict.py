@@ -15,7 +15,7 @@ test_txt_path = "DATA2021_%s.txt" % mode
 # 是否记录测试结果，用于评价map
 record_result = True
 # 是否绘制真实值
-draw_gt = True
+draw_gt = False
 # 是否保存测试结果图片
 save_test_img = True
 

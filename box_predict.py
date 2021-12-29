@@ -25,7 +25,7 @@ def preprocess_image(image):
 # model_path、classes_path和backbone
 class Bbox3dPred(object):
     _defaults = {
-        "model_path"        : 'logs-all-modules/resnet50-Epoch108-ciou-Total_train_Loss1.8616-Val_Loss3.0464.pth',
+        "model_path"        : 'logs/all_module/resnet50-Epoch108-ciou-Total_train_Loss1.8616-Val_Loss3.0464.pth',
         "classes_path"      : 'model_data/classes.txt',
         "backbone"          : "resnet50",
         "image_size"        : [512,512,3],
@@ -242,8 +242,7 @@ class Bbox3dPred(object):
             heatmap = np.uint8(255 * heatmap)
             heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
 
-
-        font = ImageFont.truetype(font='model_data/simhei.ttf',size=np.floor(3e-2 * np.shape(image)[1] + 0.5).astype('int32')//2)
+        font = ImageFont.truetype(font="model_data/Times New Roman.ttf",size=28)
 
         thickness = max((np.shape(image)[0] + np.shape(image)[1]) // self.image_size[0], 1)
 
@@ -364,6 +363,14 @@ class Bbox3dPred(object):
                     draw.line([vertex[2], vertex[3], vertex[10], vertex[11]], fill=(0, 255, 0), width=2)
                     draw.line([vertex[4], vertex[5], vertex[12], vertex[13]], fill=(0, 255, 0), width=2)
                     draw.line([vertex[6], vertex[7], vertex[14], vertex[15]], fill=(0, 255, 0), width=2)
+
+                    # 绘制长宽高的值
+                    draw.text([(vertex[0] + vertex[6]) // 2-25, (vertex[1] + vertex[7]) // 2-25], "{:.2f}m".format(l),
+                              fill=(255, 0, 0), font=font)
+                    draw.text([(vertex[0] + vertex[2]) // 2-25, (vertex[1] + vertex[3]) // 2], "{:.2f}m".format(w),
+                              fill=(255, 0, 0), font=font)
+                    draw.text([(vertex[2] + vertex[10]) // 2, (vertex[3] + vertex[11]) // 2-20], "{:.2f}m".format(h),
+                              fill=(255, 0, 0), font=font)
 
                     # 保存record
                     if is_record_result:
