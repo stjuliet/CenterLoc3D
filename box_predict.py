@@ -238,7 +238,8 @@ class Bbox3dPred(object):
             heatmap = np.uint8(255 * heatmap)
             heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
 
-        font = ImageFont.truetype(font='model_data/simhei.ttf',size=np.floor(3e-2 * np.shape(image)[1] + 0.5).astype('int32')//2)
+        # font = ImageFont.truetype(font='model_data/simhei.ttf',size=np.floor(3e-2 * np.shape(image)[1] + 0.5).astype('int32')//2)
+        font = ImageFont.truetype(font="model_data/Times New Roman.ttf", size=28)
 
         thickness = max((np.shape(image)[0] + np.shape(image)[1]) // self.image_size[0], 1)
 
@@ -357,6 +358,14 @@ class Bbox3dPred(object):
                     draw.line([vertex[2], vertex[3], vertex[10], vertex[11]], fill=(0, 255, 0), width=2)
                     draw.line([vertex[4], vertex[5], vertex[12], vertex[13]], fill=(0, 255, 0), width=2)
                     draw.line([vertex[6], vertex[7], vertex[14], vertex[15]], fill=(0, 255, 0), width=2)
+
+                    # draw vehicle size values
+                    draw.text([(vertex[0] + vertex[6]) // 2-25, (vertex[1] + vertex[7]) // 2-25], "{:.2f}m".format(l),
+                              fill=(255, 0, 0), font=font)
+                    draw.text([(vertex[0] + vertex[2]) // 2-25, (vertex[1] + vertex[3]) // 2], "{:.2f}m".format(w),
+                              fill=(255, 0, 0), font=font)
+                    draw.text([(vertex[2] + vertex[10]) // 2, (vertex[3] + vertex[11]) // 2-20], "{:.2f}m".format(h),
+                              fill=(255, 0, 0), font=font)
 
                     # save record
                     if is_record_result:
