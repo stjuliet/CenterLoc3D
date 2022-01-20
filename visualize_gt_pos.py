@@ -79,4 +79,3 @@ print("o")
 
 
 print(gt_pos_data_dict)
-print("ok")

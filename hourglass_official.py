@@ -4,12 +4,14 @@ Use lr=0.01 for current version
 (c) YANG, Wei
 clone from: https://github.com/bearpaw/pytorch-pose
 '''
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchsummary import summary
 
 __all__ = ['HourglassNet', 'hg']
+
 
 class Bottleneck(nn.Module):
     expansion = 2
@@ -208,11 +210,8 @@ class HourglassNet(nn.Module):
 
 if __name__ == "__main__":
     fp = torch.randn((1, 3, 512, 512))
-    model = HourglassNet(Bottleneck, num_stacks=8, num_blocks=2,
-                         num_classes=3)
+    model = HourglassNet(Bottleneck, num_stacks=8, num_blocks=2, num_classes=3)
     bt_hm, bt_center, bt_vertex, bt_size = model(fp)
     print(bt_center.shape)
     print(bt_size.shape)
-    # 输出summary的时候，model中返回特征图不能以list形式打包返回
     print(summary(model,(3, 512, 512), batch_size=1, device='cpu'))
-    

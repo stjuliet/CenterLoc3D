@@ -1,15 +1,15 @@
-# 将标注文件copy到VOC格式数据集下
-# 区分训练验证集和测试集
+# copy annatation files to VOC folder
+# trainval/test
 
 import os
 import shutil
 
-# 绝对路径
+# absolute path
 dataset_path_list = ["E:/PythonCodes/bbox3d_annotation_tools/session0_center_data", 
                      "E:/PythonCodes/bbox3d_annotation_tools/session0_right_data", 
                      "E:/PythonCodes/bbox3d_annotation_tools/session6_right_data"]
 
-# 相对路径
+# relative path
 voc_trainval_img_dir = "DATAdevkit/DATA2021/JPEGImages"
 voc_trainval_anno_dir = "DATAdevkit/DATA2021/Annotations"
 voc_trainval_calib_dir = "DATAdevkit/DATA2021/Calib"
@@ -18,12 +18,10 @@ voc_test_img_dir = "DATAdevkit/TESTDATA2021/JPEGImages"
 voc_test_anno_dir = "DATAdevkit/TESTDATA2021/Annotations"
 voc_test_calib_dir = "DATAdevkit/TESTDATA2021/Calib"
 
-# 指定训练验证集开始位置
+# start index of trainval
 trainval_len_list = [2852*3, 3183*3, 1014*3]
 
-# 指定数据集图片类型
 IMAGE_TYPES = [".jpg", ".png", ".jpeg"]
-
 
 if not os.path.exists(voc_trainval_img_dir):
     os.makedirs(voc_trainval_img_dir)
@@ -37,7 +35,6 @@ if not os.path.exists(voc_trainval_calib_dir):
     os.makedirs(voc_trainval_calib_dir)
 if not os.path.exists(voc_test_calib_dir):
     os.makedirs(voc_test_calib_dir)
-
 
 for dt_index, single_dataset_path_list in enumerate(dataset_path_list):
     file_list = os.listdir(single_dataset_path_list)
@@ -89,5 +86,4 @@ for dt_index, single_dataset_path_list in enumerate(dataset_path_list):
                     if not os.path.exists(img_new_path):
                         shutil.copy(img_raw_path, img_new_path)
 
-
-print("finish copy calib files, imgs and annotations!")
+print("finish copy calib files, imgs and annotations to VOC folder!")

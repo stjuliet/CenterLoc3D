@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 from torchsummary import summary
 
+
 class HgResBlock(nn.Module):
     """ single resnet block """
     def __init__(self, inplanes, outplanes):
@@ -36,6 +37,7 @@ class HgResBlock(nn.Module):
             residual = self.conv_skip(residual)
         out += residual
         return out
+
 
 class Hourglass(nn.Module):
     def __init__(self, depth, nFeat, nModules, resBlocks):
@@ -74,6 +76,7 @@ class Hourglass(nn.Module):
 
     def forward(self, x):
         return self._hourglass_forward(0, x)
+
 
 class HourglassNet(nn.Module):
     def __init__(self, nStacks, nModules, nFeat, nClasses, resBlock=HgResBlock, inplanes=3):
@@ -167,6 +170,4 @@ if __name__ == "__main__":
     bt_hm, bt_center, bt_vertex, bt_size = model(fp)
     print(bt_center.shape)
     print(bt_size.shape)
-    # 输出summary的时候，model中返回特征图不能以list形式打包返回
     print(summary(model, (3, 512, 512), batch_size=1, device='cpu'))
-    

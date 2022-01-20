@@ -1,3 +1,4 @@
+# ref: https://github.com/bubbliiiing/efficientdet-pytorch/blob/master/nets/layers.py
 import collections
 import math
 import re
@@ -8,9 +9,6 @@ from torch import nn
 from torch.nn import functional as F
 from torch.utils import model_zoo
 
-#--------------------------------------------------------------#
-#   模型构建的辅助函数
-#--------------------------------------------------------------#
 
 GlobalParams = collections.namedtuple('GlobalParams', [
     'batch_norm_momentum', 'batch_norm_epsilon', 'dropout_rate',
@@ -23,6 +21,7 @@ BlockArgs = collections.namedtuple('BlockArgs', [
 
 GlobalParams.__new__.__defaults__ = (None,) * len(GlobalParams._fields)
 BlockArgs.__new__.__defaults__ = (None,) * len(BlockArgs._fields)
+
 
 def round_filters(filters, global_params):
     """ Calculate and round number of filters based on depth multiplier. """
@@ -94,9 +93,7 @@ class Identity(nn.Module):
     def forward(self, input):
         return input
 
-#--------------------------------------------------------------#
-#   加载模型参数的辅助函数
-#--------------------------------------------------------------#
+
 def efficientnet_params(model_name):
     """ Map EfficientNet model name to parameter coefficients. """
     params_dict = {
@@ -276,7 +273,6 @@ def load_pretrained_weights(model, model_name, load_fc=True, advprop=False):
     print('Loaded pretrained weights for {}'.format(model_name))
 
 
-
 class SwishImplementation(torch.autograd.Function):
     @staticmethod
     def forward(ctx, i):
@@ -299,6 +295,7 @@ class MemoryEfficientSwish(nn.Module):
 class Swish(nn.Module):
     def forward(self, x):
         return x * torch.sigmoid(x)
+
 
 class Conv2dStaticSamePadding(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, bias=True, groups=1, dilation=1, **kwargs):

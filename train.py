@@ -35,10 +35,12 @@ def get_classes(classes_path):
     class_names = [c.strip() for c in class_names]
     return class_names
 
+
 def get_lr(optimizer):
     '''get lr value'''
     for param_group in optimizer.param_groups:
         return param_group['lr']
+
 
 def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, gen, genval, Epoch, iou_type, cuda, writer):
     """
@@ -293,7 +295,6 @@ if __name__ == "__main__":
         batch_size_dict.update({"darknet":[8, 4]})
     else:
         batch_size_dict.update({"darknet": [16, 8]})
-        
 
     if backbone[:-2] == "resnet":
         model = KeyPointDetection(model_name=backbone[:-2], model_index=backbone_resnet_index[backbone], num_classes=num_classes, pretrained_weights=pretrain)
@@ -331,7 +332,6 @@ if __name__ == "__main__":
     # model.load_state_dict(model_dict)
     # print('Finished!')
 
-
     net = model.train()
 
     # 设置早停
@@ -343,7 +343,6 @@ if __name__ == "__main__":
         net = torch.nn.DataParallel(model)
         cudnn.benchmark = True
         net = net.cuda()
-
 
     # 获得图片路径和标签
     annotation_path = 'DATA2021_train.txt'
@@ -363,7 +362,6 @@ if __name__ == "__main__":
     with open("DATAdevkit/DATA2021/ImageSets/Main/val.txt", "w") as fval:
         for line in lines[num_train:]:
             fval.write(line.split(" ")[0].split("/")[-1].split(".")[0] + "\n")
-
 
     # 构建绘制loss曲线图writer
     writer = SummaryWriter(log_dir='train-logs',flush_secs=60)

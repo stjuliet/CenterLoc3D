@@ -1,4 +1,4 @@
-# 包含工具函数
+# functions
 
 import math
 import cv2 as cv
@@ -641,6 +641,7 @@ def draw_gaussian(heatmap, center, radius, k=1):
         np.maximum(masked_heatmap, masked_gaussian * k, out=masked_heatmap)
     return heatmap
 
+
 def gaussian2D(shape, sigma=1):
     m, n = [(ss - 1.) / 2. for ss in shape]
     y, x = np.ogrid[-m:m + 1, -n:n + 1]
@@ -648,6 +649,7 @@ def gaussian2D(shape, sigma=1):
     h = np.exp(-(x * x + y * y) / (2 * sigma * sigma))
     h[h < np.finfo(h.dtype).eps * h.max()] = 0
     return h
+
 
 def gaussian_radius(det_size, min_overlap=0.7):
     height, width = det_size
@@ -671,6 +673,7 @@ def gaussian_radius(det_size, min_overlap=0.7):
     r3 = (b3 + sq3) / 2
     return min(r1, r2, r3)
 # -----------------------------高斯核函数-----------------------------------------------------#
+
 
 def intersect_cross(k0, b0, k1, b1):
     """功能 : 求取两个直线的交点，输入是两条直线: y=k*x+b"""
@@ -696,18 +699,19 @@ def get_vanish_point(vanish_lines):
     vanish_point = np.mean(vanish_points, 0)
     return vanish_point
 
+
 def get_distance_from_point_to_line(point, line_point1, line_point2):
-    #对于两点坐标为同一点时,返回点与点的距离
+    # 对于两点坐标为同一点时,返回点与点的距离
     if line_point1 == line_point2:
         point_array = np.array(point)
         point1_array = np.array(line_point1)
         return np.linalg.norm(point_array-point1_array)
-    #计算直线的三个参数
+    # 计算直线的三个参数
     A = line_point2[1] - line_point1[1]
     B = line_point1[0] - line_point2[0]
     C = (line_point1[1] - line_point2[1]) * line_point1[0] + \
         (line_point2[0] - line_point1[0]) * line_point1[1]
-    #根据点到直线的距离公式计算距离
+    # 根据点到直线的距离公式计算距离
     distance = np.abs(A * point[0] + B * point[1] + C) / (np.sqrt(A**2 + B**2))
     return distance
 

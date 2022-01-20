@@ -1,4 +1,5 @@
-# 3D mAP -- 修改iou--> 3d iou
+# 3D mAP -- revise iou--> 3d iou
+# based on: https://github.com/Cartucho/mAP
 import glob
 import json
 import os
@@ -12,13 +13,9 @@ import numpy as np
 
 from utils import basic_3diou
 
-mode = "val"  # 选择在验证集上还是在测试集上
+mode = "val"  # val/test
 
-#----------------------------------------------------#
-#   用于计算mAP
-#   代码克隆自https://github.com/Cartucho/mAP
-#----------------------------------------------------#
-MINOVERLAP = 0.7 # default value (defined in the PASCAL VOC2012 challenge)
+MINOVERLAP = 0.7  # default value (defined in the PASCAL VOC2012 challenge)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-na', '--no-animation', help="no animation is shown.", action="store_true")

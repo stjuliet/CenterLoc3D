@@ -20,7 +20,7 @@ class Bbox3dDatasets(Dataset):
         super(Bbox3dDatasets, self).__init__()
         self.train_lines = train_lines
         self.input_size = input_size  # 512, 512
-        self.output_size = (int(input_size[0]/4) , int(input_size[1]/4))  # 128, 128
+        self.output_size = (int(input_size[0]/4), int(input_size[1]/4))  # 128, 128
         self.num_classes = num_classes
         self.is_train = is_train
 
@@ -49,9 +49,9 @@ class Bbox3dDatasets(Dataset):
         """实时数据增强的随机预处理"""
         line = annotation_line.split()
         # line[0]:image, line[1]:calib_file_path, line[2:]:box_info
-        image = Image.open(line[0])  # 原始图像
-        image_w, image_h = image.size  # 原始图像尺寸
-        featmap_h, featmap_w = input_shape  # feature_map尺寸
+        image = Image.open(line[0])  # raw img
+        image_w, image_h = image.size  # raw img h,w
+        featmap_h, featmap_w = input_shape  # feature_map h,w
         scale = min(featmap_w/image_w, featmap_h/image_h)
         new_image_w = int(image_w*scale)
         new_image_h = int(image_h*scale)
@@ -62,7 +62,7 @@ class Bbox3dDatasets(Dataset):
 
         box_info = np.array([np.array(list(map(float,box_info.split(',')))) for box_info in line[2:]])  # [len(box_info), 29]
 
-        # 从box_info中拆解出
+        # from box_info
         # left,top,width,height,cls_id,cx1,cy1,u0,v0,...,u7,v7,v_l,v_w,v_h,pers,bpx1,bpx2  (29 items)
         box2d_len = 4
         cls_len = box2d_len + 1
@@ -85,11 +85,11 @@ class Bbox3dDatasets(Dataset):
         correct_box_center = np.zeros((len(box_info), 2))
         correct_box_vertex = np.zeros((len(box_info), 16))
 
-        # resize image (加灰条)
+        # resize image (without deform)
         image = self.letterbox_image(image, image_h, image_w, input_shape)  # RGB, HWC
 
-        if augment: # 如果进行数据增强(色域变换/随机水平翻转)
-            # 随机水平翻转
+        if augment:  # data augmentation
+            # random flip
             # flip = rand()<.5
             flip = False
             if flip:
@@ -126,7 +126,7 @@ class Bbox3dDatasets(Dataset):
                     box_vertex[:, 1:16:2] = box_vertex[:, 1:16:2] * new_image_h/image_h + dy  # y
                     correct_box_vertex[:len(box_info)] = box_vertex
 
-            # 随机色域变换
+            # random color jittor
             color_change = self.rand()<.5
             if color_change:
                 hue = self.rand(-hue, hue)
@@ -166,7 +166,7 @@ class Bbox3dDatasets(Dataset):
             shuffle(self.train_lines)
         lines = self.train_lines
 
-        # 进行数据增强
+        # load data
         image_data, calib_matrix, correct_box2d, box_cls, correct_box_center, correct_box_vertex, box_size, box_perspective, box_base_point, raw_img_w, raw_img_h = self.get_random_data(lines[index], [self.input_size[0],self.input_size[1]], augment=self.is_train)
         
         batch_hm = np.zeros((self.output_size[0], self.output_size[1], self.num_classes), dtype=np.float32)
@@ -177,21 +177,21 @@ class Bbox3dDatasets(Dataset):
         batch_base_point = np.zeros((self.output_size[0], self.output_size[1], 2), dtype=np.float32)
         batch_center_mask = np.zeros((self.output_size[0], self.output_size[1]), dtype=np.float32)
         
-        if len(box_cls) != 0: # 如果有目标
-            # 转换成相对于特征层的大小 !!!
-            # 取出宽高(相对于特征层), 用于绘制热力图
+        if len(box_cls) != 0:  # if any object
+            # change to size relative to feature h,w !!!
+            # for heatmap drawing
             fp_boxes = np.array(correct_box2d, dtype=np.float32)
             fp_boxes[:,0] = fp_boxes[:,0] / self.input_size[1] * self.output_size[1]
             fp_boxes[:,1] = fp_boxes[:,1] / self.input_size[0] * self.output_size[0]
             fp_boxes[:,2] = fp_boxes[:,2] / self.input_size[1] * self.output_size[1]
             fp_boxes[:,3] = fp_boxes[:,3] / self.input_size[0] * self.output_size[0]
 
-            # 取出中心点
+            # centroid
             fp_box_center = np.array(correct_box_center, dtype=np.float32)
             fp_box_center[:,0] = fp_box_center[:,0] / self.input_size[1] * self.output_size[1]
             fp_box_center[:,1] = fp_box_center[:,1] / self.input_size[0] * self.output_size[0]
 
-            # 取出顶点
+            # vertex
             fp_box_vertex = np.array(correct_box_vertex, dtype=np.float32)
             fp_box_vertex[:,0:16:2] = fp_box_vertex[:,0:16:2] / self.input_size[1] * self.output_size[1]
             fp_box_vertex[:,1:16:2] = fp_box_vertex[:,1:16:2] / self.input_size[0] * self.output_size[0]
@@ -199,22 +199,22 @@ class Bbox3dDatasets(Dataset):
         for i in range(len(box_cls)):
             fp_box_center_copy = fp_box_center[i].copy()
             fp_box_center_copy = np.array(fp_box_center_copy)
-            # 防止中心点超出特征层的范围
+            # prevent centroid outer feature map
             fp_box_center_copy[0] = np.clip(fp_box_center_copy[0], 0, self.output_size[1] - 1)
             fp_box_center_copy[1] = np.clip(fp_box_center_copy[1], 0, self.output_size[0] - 1)
 
             box_cls_id = int(box_cls[i])
 
-            # 计算每个目标对应3D box的最小外接矩形宽高, 作为热力图半径 !!!
+            # calculate minimum enclosing rectangle of each object for heatmap radius !!!
             fp_box_w, fp_box_h = abs(fp_box_vertex[i, 2] - fp_box_vertex[i, 6]), abs(fp_box_vertex[i, 1] - fp_box_vertex[i, 13])
             if fp_box_w > 0 and fp_box_h > 0:
                 radius = gaussian_radius((math.ceil(fp_box_h), math.ceil(fp_box_w)))
                 radius = max(0, int(radius))
-                # 计算真实框所属的特征点
+                # gt centroid
                 ct = np.array([fp_box_center_copy[0], fp_box_center_copy[1]], dtype=np.float32)
                 ct_int = ct.astype(np.int32)
 
-                # 绘制高斯热力图
+                # draw gaussian heatmap
                 batch_hm[:, :, box_cls_id] = draw_gaussian(batch_hm[:, :, box_cls_id], ct_int, radius)
                 batch_center_reg[ct_int[1], ct_int[0]] = ct - ct_int
                 batch_vertex_reg[ct_int[1], ct_int[0]] = fp_box_vertex[i]
@@ -224,12 +224,11 @@ class Bbox3dDatasets(Dataset):
                 batch_center_mask[ct_int[1], ct_int[0]] = 1
 
         img = np.array(image_data, dtype=np.float32)[:,:,::-1]  # RGB -> BGR
-        img = np.transpose(self.preprocess_image(img), (2, 0, 1))  # 归一化，HWC->CHW
+        img = np.transpose(self.preprocess_image(img), (2, 0, 1))  # normalization，HWC->CHW
 
         return img, calib_matrix, batch_hm, batch_center_reg, batch_vertex_reg, batch_size_reg, batch_center_mask, batch_box_perspective, batch_base_point, raw_img_w, raw_img_h
 
 
-# DataLoader中collate_fn使用
 def bbox3d_dataset_collate(batch):
     imgs, calib_matrixs, batch_hms, batch_center_regs, batch_vertex_regs, batch_size_regs, batch_center_masks, batch_box_perspectives, batch_base_points, raw_img_ws, raw_img_hs = [], [], [], [], [], [], [], [], [], [], []
 

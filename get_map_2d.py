@@ -1,3 +1,4 @@
+# ref: https://github.com/Cartucho/mAP
 import glob
 import json
 import os
@@ -11,13 +12,9 @@ import numpy as np
 
 from utils import basic_diou, basic_ciou
 
-mode = "test"  # 选择在验证集上还是在测试集上
+mode = "test"  # val/test
 
-#----------------------------------------------------#
-#   用于计算mAP
-#   代码克隆自https://github.com/Cartucho/mAP
-#----------------------------------------------------#
-MINOVERLAP = 0.5 # default value (defined in the PASCAL VOC2012 challenge)
+MINOVERLAP = 0.5  # default value (defined in the PASCAL VOC2012 challenge)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-na', '--no-animation', help="no animation is shown.", action="store_true")
@@ -57,7 +54,7 @@ DR_PATH = os.path.join(os.getcwd(), '%s/input-2D'%mode, 'detection-results')
 # if there are no images then no animation can be shown
 IMG_PATH = os.path.join(os.getcwd(), '%s/input-2D'%mode, 'images-optional')
 
-# 评估过程不显示图像,会降低速度
+# no visualization during eval
 args.no_animation = True
 # if os.path.exists(IMG_PATH):
 #     for dirpath, dirnames, files in os.walk(IMG_PATH):

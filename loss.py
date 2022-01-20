@@ -17,8 +17,8 @@ def focal_loss(pred, target):
     # 找到每张图片的正样本和负样本
     # 一个真实框对应一个正样本
     # 除去正样本的特征点，其余为负样本
-    pos_inds = target.eq(1).float()  # 等于
-    neg_inds = target.lt(1).float()  # 小于
+    pos_inds = target.eq(1).float()  # =
+    neg_inds = target.lt(1).float()  # <
     # 正样本特征点附近的负样本的权值更小一些
     neg_weights = torch.pow(1 - target, 4)
     
@@ -197,7 +197,6 @@ def reg_iou_loss(iou_type, pred_vertex, target, mask, perspective, fp_size, inpu
     loss = F.l1_loss(batch_calc_ious_loss * expand_mask, batch_gt_ious_loss * expand_mask, reduction='sum')
     loss = loss / (mask.sum() + 1e-4)
     return loss
-
 
 
 def reg_vp_loss(pred_vertex, target, mask, index, perspective, fp_size, input_size, raw_img_hs, raw_img_ws):

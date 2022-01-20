@@ -3,7 +3,7 @@ from box_predict import Bbox3dPred
 from PIL import Image
 
 model = Bbox3dPred()
-# 单张图片，不记录测试结果，只显示
+# predict single img for show
 record_result = False
 
 while True:

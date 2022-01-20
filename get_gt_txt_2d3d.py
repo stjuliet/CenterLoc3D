@@ -1,4 +1,4 @@
-# 获取测试集的ground-truth
+# get ground-truth of val/test
 
 import os
 import re
@@ -6,15 +6,16 @@ import xml.etree.ElementTree as ET
 from tqdm import tqdm
 from utils import *
 
-mode = "test"  # 选择在验证集上还是在测试集上
+mode = "test"  # val/test
 
-# 获得类
+
 def get_classes(classes_path):
     '''loads the classes'''
     with open(classes_path) as f:
         class_names = f.readlines()
     class_names = [c.strip() for c in class_names]
     return class_names
+
 
 image_ids = open('./DATAdevkit/DATA2021/ImageSets/Main/%s.txt'%mode).read().strip().split()
 gt_annos = open('DATA2021_%s.txt'%mode).readlines()
@@ -52,31 +53,31 @@ for image_id in tqdm(image_ids):
                 calib_matrix = read_calib_params(calib_xml_path, width, height)
                 ct += 1
                 for obj in root.findall('object'):
-                    # 读取类型、视角及顶点信息
-                    #  车辆类型(0，1，2) (str)
+                    #  get cls, view, vertex
+                    #  vehicle type (0，1，2) (str)
                     veh_type_data = obj.find('type').text
 
-                    #  车辆三维框顶点坐标(int)  --- 2d
-                    veh_vertex_data_2d = [] # for each box (8 vertex)
+                    #  vertex of 3d box in img (int)  --- 2d
+                    veh_vertex_data_2d = []  # for each box (8 vertex)
                     box_2dvertex = re.findall(r'[(](.*?)[)]', obj.find('vertex2d').text)
                     for x in box_2dvertex:
-                        veh_vertex_data_2d += [int(item) for item in x.split(", ")]  # 合并为[x1,y1,x2,y2,...,x8,y8]的形式
+                        veh_vertex_data_2d += [int(item) for item in x.split(", ")]  # [x1,y1,x2,y2,...,x8,y8]
 
-                    #  车辆三维框顶点坐标(int)  --- 3d
-                    veh_vertex_data_3d = [] # for each box (8 vertex)
+                    #  vertex of 3d box in world (int)  --- 3d
+                    veh_vertex_data_3d = []  # for each box (8 vertex)
                     box_3dvertex = re.findall(r'[(](.*?)[)]', obj.find('vertex3d').text)
                     for x in box_3dvertex:
-                        veh_vertex_data_3d += [int(float(item)) for item in x.split(", ")]  # 合并为[x1,y1,z1,x2,y2,z2,...,x8,y8,z8]的形式
+                        veh_vertex_data_3d += [int(float(item)) for item in x.split(", ")]  # [x1,y1,z1,x2,y2,z2,...,x8,y8,z8]
 
-                    # 车辆三维尺寸
+                    #  vehicle size
                     veh_physical_size = obj.find('veh_size').text.split(" ")
                     veh_physical_size = list(map(float, veh_physical_size))
 
-                    # 车辆三维投影质心
+                    #  vehicle centroid in img
                     veh_proj_loc = obj.find('veh_loc_2d').text.split(" ")
                     veh_proj_loc = list(map(int, veh_proj_loc))
 
-                    #  视角(left, right) (str)
+                    #  view (left, right) (str)
                     veh_view_data = obj.find('perspective').text
 
                     if veh_view_data == "right":  # right perspective  (7,1)
@@ -91,13 +92,13 @@ for image_id in tqdm(image_ids):
                         line_3d += " " + str(i)
                     for i in veh_physical_size:
                         line_size += " " + str(i)
-                    # 计算3D质心坐标
+                    # calculate 3d centroid in world
                     cx_3d, cy_3d, cz_3d = RDUVtoXYZ(calib_matrix, veh_proj_loc[0], veh_proj_loc[1], 1000*veh_physical_size[2]/2)
                     for i in (cx_3d, cy_3d, cz_3d):
                         line_ct_loc += " " + str(i)
                     f_3d.write("%s %s %s %s\n" % (str(veh_type_data), str(line_3d.strip()), str(line_size.strip()), str(line_ct_loc.strip())))
 
-                    # 保存画图所需的车辆真实值，包括3D框和中心点
+                    # save gt 3d box and centroid for drawing
                     line_vt2d = ""
                     for i in veh_vertex_data_2d:
                         line_vt2d += " " + str(i)
@@ -106,4 +107,4 @@ for image_id in tqdm(image_ids):
                     f_loc_size_gt.write("%s\n" % (str(line_vt2d.strip())))
 
 
-print("gt files finished!")
+print("finish getting gt files!")

@@ -1,3 +1,5 @@
+# check scene change and img index continuous in a single scene
+
 import os
 
 f = open("DATAdevkit/DATA2021/ImageSets/Main/trainval.txt", "r")

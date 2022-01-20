@@ -1,4 +1,5 @@
-# 批量预测test.txt文件中的图片, 并记录测试结果, 用于评价map
+# bacth predict imgs in test.txt
+# and save results for eval
 
 from box_predict import Bbox3dPred
 from PIL import Image
@@ -7,16 +8,14 @@ import cv2 as cv
 
 model = Bbox3dPred()
 
-mode = "test"  # 选择在验证集上还是在测试集上
+mode = "test"  # val/test datasets
 
-# 测试集文件路径
 test_txt_path = "DATA2021_%s.txt" % mode
 
-# 是否记录测试结果，用于评价map
 record_result = True
-# 是否绘制真实值
+# draw gt boxes in imgs
 draw_gt = True
-# 是否保存测试结果图片
+# visualization
 save_test_img = True
 
 total_proc_time = 0
@@ -35,7 +34,7 @@ with open(test_txt_path, "r") as fread:
                 # r_heatmap.save("./input-2D/images-heatmap/" + str(single_test_file_path.split(" ")[0].split("/")[-1][:-4] + "_heatmap.png"))
                 # r_image.save("./input-3D/images-optional/" + str(single_test_file_path.split(" ")[0].split("/")[-1]))
             
-            pbar.set_postfix(**{"single fps" : round(1 / proc_time, 4)})  # 保留4位小数
+            pbar.set_postfix(**{"single fps" : round(1 / proc_time, 4)})  # **.****
             pbar.update(1)
 
 print("Average FPS: ", round(len(test_file_path_list)/total_proc_time, 4))
