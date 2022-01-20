@@ -701,7 +701,7 @@ def get_vanish_point(vanish_lines):
 
 
 def get_distance_from_point_to_line(point, line_point1, line_point2):
-    # 对于两点坐标为同一点时,返回点与点的距离
+    # 对于两点坐标为同一点时, 返回点与点的距离
     if line_point1 == line_point2:
         point_array = np.array(point)
         point1_array = np.array(line_point1)
