@@ -11,7 +11,7 @@ from xml.etree import ElementTree as ET
 
 
 def letterbox_image(image, size):
-    """给图片加灰条，不失真缩放"""
+    """ resize without deformation"""
     iw, ih = image.size
     w, h = size
     scale = min(w/iw, h/ih)
@@ -19,13 +19,13 @@ def letterbox_image(image, size):
     nh = int(ih*scale)
 
     image = image.resize((nw,nh), Image.BICUBIC)
-    new_image = Image.new('RGB', size, (128,128,128))
+    new_image = Image.new('RGB', size, (128, 128, 128))  # gray
     new_image.paste(image, ((w-nw)//2, (h-nh)//2))
     return new_image
 
 
 def pool_nms(heat, kernel=3):
-    """最大池化的nms"""
+    """ nms with max pool """
     pad = (kernel - 1) // 2
     hmax = nn.functional.max_pool2d(
         heat, (kernel, kernel), stride=1, padding=pad)
@@ -34,10 +34,9 @@ def pool_nms(heat, kernel=3):
 
 
 def nms(results, nms_threshold):
-    """普通nms"""
+    """ common nms"""
     outputs = []
-    # 对每一个图片进行处理
-    for i in range(len(results)):
+    for i in range(len(results)):  # each img
 
         detections = results[i]
         unique_class = np.unique(detections[:,-1])
@@ -47,29 +46,30 @@ def nms(results, nms_threshold):
             results.append(best_box)
             continue
 
-        #   对种类进行循环，
-        #   非极大抑制的作用是筛选出一定区域内属于同一种类得分最大的框
-        for c in unique_class:
+        for c in unique_class:  # cls
             cls_mask = detections[:,-1] == c
 
             detection = detections[cls_mask]
             scores = detection[:,4]
-            # 根据得分对该种类进行从大到小排序
+            # descending order
             arg_sort = np.argsort(scores)[::-1]
             detection = detection[arg_sort]
-            while np.shape(detection)[0]>0:
-                # 每次取出得分最大的框，计算其与其它所有预测框的重合程度，重合程度过大的则剔除
+            while np.shape(detection)[0] > 0:
                 best_box.append(detection[0])
                 if len(detection) == 1:
                     break
-                ious = nms_diou(best_box[-1],detection[1:])
-                detection = detection[1:][ious<nms_threshold]
+                ious = nms_diou(best_box[-1], detection[1:])
+                detection = detection[1:][ious < nms_threshold]  # only keep box with ious < nms_threshold
         outputs.append(best_box)
     return outputs
 
 
 def iou(b1, b2):
-    """二维框iou"""
+    """
+    2d iou
+    b1: [lt_x, ly_y, br_x, br_y]
+    b2: [num_img, 4], 4: [lt_x, ly_y, br_x, br_y]
+    """
     b1_x1, b1_y1, b1_x2, b1_y2 = b1[0], b1[1], b1[2], b1[3]
     b2_x1, b2_y1, b2_x2, b2_y2 = b2[:, 0], b2[:, 1], b2[:, 2], b2[:, 3]
 
@@ -89,33 +89,30 @@ def iou(b1, b2):
 
 
 def nms_diou(bbox_p, bbox_g):
-    # 计算预测框面积
+    """
+    bbox_p: [lt_x, ly_y, br_x, br_y]
+    bbox_g: [lt_x, ly_y, br_x, br_y]
+    """
+    # pred 2d box area
     area_p = abs(bbox_p[2] - bbox_p[0]) * abs(bbox_p[3] - bbox_p[1])
-    # 计算真实框面积
+    # gt 2d box area
     area_g = abs(bbox_g[:, 2] - bbox_g[:, 0]) * abs(bbox_g[:, 3] - bbox_g[:, 1])
-
-    bbox_h_p = bbox_p[3] - bbox_p[1]
-    bbox_w_p = bbox_p[2] - bbox_p[0]
-    bbox_h_g = bbox_g[:, 3] - bbox_g[:, 1]
-    bbox_w_g = bbox_g[:, 2] - bbox_g[:, 0]
 
     center_p = np.array([(bbox_p[0]+bbox_p[2])/2., (bbox_p[1]+bbox_p[3])/2.], dtype=np.float32)
     center_g = np.array([(bbox_g[:, 0]+bbox_g[:, 2])/2., (bbox_g[:, 1]+bbox_g[:, 3])/2.], dtype=np.float32)
 
-    # 计算中心点距离
+    # box center distance
     box_center_dis = (center_p[0] - center_g[:, 0])**2 + (center_p[1] - center_g[:, 1])**2
 
-    # 计算预测框和真实框的交集面积
     x_min_inter = np.maximum(bbox_p[0], bbox_g[:, 0])
     y_min_inter = np.maximum(bbox_p[1], bbox_g[:, 1])
     x_max_inter = np.minimum(bbox_p[2], bbox_g[:, 2])
     y_max_inter = np.minimum(bbox_p[3], bbox_g[:, 3])
     intersection = np.maximum(abs(x_max_inter - x_min_inter), 0) * np.maximum(abs(y_max_inter - y_min_inter), 0)
-    
-    # 计算预测框和真实框的并集面积
+
     union = area_p + area_g - intersection
 
-    # 计算预测框和真实框并集的外接矩形的对角线距离
+    # diagonal of union enclosing rectangle
     x_min_union = np.minimum(bbox_p[0], bbox_g[:, 0])
     y_min_union = np.minimum(bbox_p[1], bbox_g[:, 1])
     x_max_union = np.maximum(bbox_p[2], bbox_g[:, 2])
@@ -123,92 +120,98 @@ def nms_diou(bbox_p, bbox_g):
 
     external_dis = (x_max_union - x_min_union)**2 + (y_max_union - y_min_union)**2
 
-    # 计算iou
+    # iou
     iou = intersection / np.maximum(union, 1e-6)
     
-    # 计算ciou
+    # diou
     diou = iou - (box_center_dis / np.maximum(external_dis, 1e-6))
 
     return diou
 
 
 def basic_iou(bbox_p, bbox_g):
-    # 计算预测框面积
+    """
+    bbox_p: [lt_x, ly_y, br_x, br_y]
+    bbox_g: [lt_x, ly_y, br_x, br_y]
+    """
+    # pred 2d box area
     area_p = abs(bbox_p[2] - bbox_p[0]) * abs(bbox_p[3] - bbox_p[1])
-    # 计算真实框面积
+    # gt 2d box area
     area_g = abs(bbox_g[2] - bbox_g[0]) * abs(bbox_g[3] - bbox_g[1])
 
-    # 计算预测框和真实框的交集面积
     x_min_inter = np.maximum(bbox_p[0], bbox_g[0])
     y_min_inter = np.maximum(bbox_p[1], bbox_g[1])
     x_max_inter = np.minimum(bbox_p[2], bbox_g[2])
     y_max_inter = np.minimum(bbox_p[3], bbox_g[3])
     intersection = np.maximum(abs(x_max_inter - x_min_inter), 0) * np.maximum(abs(y_max_inter - y_min_inter), 0)
-    
-    # 计算预测框和真实框的并集面积
+
     union = area_p + area_g - intersection
 
-    # 计算iou
+    # iou
     iou = intersection / np.maximum(union, 1e-6)
 
     return iou
 
 
 def basic_giou(bbox_p, bbox_g):
-    # 计算预测框面积
+    """
+    bbox_p: [lt_x, ly_y, br_x, br_y]
+    bbox_g: [lt_x, ly_y, br_x, br_y]
+    """
+    # pred 2d box area
     area_p = abs(bbox_p[2] - bbox_p[0]) * abs(bbox_p[3] - bbox_p[1])
-    # 计算真实框面积
+    # gt 2d box area
     area_g = abs(bbox_g[2] - bbox_g[0]) * abs(bbox_g[3] - bbox_g[1])
 
-    # 计算预测框和真实框的交集面积
     x_min_inter = np.maximum(bbox_p[0], bbox_g[0])
     y_min_inter = np.maximum(bbox_p[1], bbox_g[1])
     x_max_inter = np.minimum(bbox_p[2], bbox_g[2])
     y_max_inter = np.minimum(bbox_p[3], bbox_g[3])
     intersection = np.maximum(abs(x_max_inter - x_min_inter), 0) * np.maximum(abs(y_max_inter - y_min_inter), 0)
-    
-    # 计算预测框和真实框的并集面积
+
     union = area_p + area_g - intersection
 
-    # 计算预测框和真实框并集的外接矩形
+    # union enclosing rectangle
     x_min_union = np.minimum(bbox_p[0], bbox_g[0])
     y_min_union = np.minimum(bbox_p[1], bbox_g[1])
     x_max_union = np.maximum(bbox_p[2], bbox_g[2])
     y_max_union = np.maximum(bbox_p[3], bbox_g[3])
     external_rectangle = np.maximum(abs(x_max_union - x_min_union), 0) * np.maximum(abs(y_max_union - y_min_union), 0)
 
-    # 计算iou
+    # iou
     iou = intersection / np.maximum(union, 1e-6)
 
-    # 计算giou
+    # giou
     giou = iou - ((external_rectangle - union) / np.maximun(external_rectangle, 1e-6))
 
     return giou
 
 
 def basic_diou(bbox_p, bbox_g):
-    # 计算预测框面积
+    """
+    bbox_p: [lt_x, ly_y, br_x, br_y]
+    bbox_g: [lt_x, ly_y, br_x, br_y]
+    """
+    # pred 2d box area
     area_p = abs(bbox_p[2] - bbox_p[0]) * abs(bbox_p[3] - bbox_p[1])
-    # 计算真实框面积
+    # gt 2d box area
     area_g = abs(bbox_g[2] - bbox_g[0]) * abs(bbox_g[3] - bbox_g[1])
 
     center_p = np.array([(bbox_p[0]+bbox_p[2])/2., (bbox_p[1]+bbox_p[3])/2.], dtype=np.float32)
     center_g = np.array([(bbox_g[0]+bbox_g[2])/2., (bbox_g[1]+bbox_g[3])/2.], dtype=np.float32)
 
-    # 计算中心点距离
+    # box center distance
     box_center_dis = (center_p[0] - center_g[0])**2 + (center_p[1] - center_g[1])**2
 
-    # 计算预测框和真实框的交集面积
     x_min_inter = np.maximum(bbox_p[0], bbox_g[0])
     y_min_inter = np.maximum(bbox_p[1], bbox_g[1])
     x_max_inter = np.minimum(bbox_p[2], bbox_g[2])
     y_max_inter = np.minimum(bbox_p[3], bbox_g[3])
     intersection = np.maximum(abs(x_max_inter - x_min_inter), 0) * np.maximum(abs(y_max_inter - y_min_inter), 0)
-    
-    # 计算预测框和真实框的并集面积
+
     union = area_p + area_g - intersection
 
-    # 计算预测框和真实框并集的外接矩形的对角线距离
+    # diagonal of union enclosing rectangle
     x_min_union = np.minimum(bbox_p[0], bbox_g[0])
     y_min_union = np.minimum(bbox_p[1], bbox_g[1])
     x_max_union = np.maximum(bbox_p[2], bbox_g[2])
@@ -216,19 +219,23 @@ def basic_diou(bbox_p, bbox_g):
 
     external_dis = (x_max_union - x_min_union)**2 + (y_max_union - y_min_union)**2
 
-    # 计算iou
+    # iou
     iou = intersection / np.maximum(union, 1e-6)
     
-    # 计算diou
+    # diou
     diou = iou - box_center_dis / np.maximum(external_dis, 1e-6)
 
     return diou
 
 
 def basic_ciou(bbox_p, bbox_g):
-    # 计算预测框面积
+    """
+    bbox_p: [lt_x, ly_y, br_x, br_y]
+    bbox_g: [lt_x, ly_y, br_x, br_y]
+    """
+    # pred 2d box area
     area_p = abs(bbox_p[2] - bbox_p[0]) * abs(bbox_p[3] - bbox_p[1])
-    # 计算真实框面积
+    # gt 2d box area
     area_g = abs(bbox_g[2] - bbox_g[0]) * abs(bbox_g[3] - bbox_g[1])
 
     bbox_h_p = bbox_p[3] - bbox_p[1]
@@ -239,20 +246,18 @@ def basic_ciou(bbox_p, bbox_g):
     center_p = np.array([(bbox_p[0]+bbox_p[2])/2., (bbox_p[1]+bbox_p[3])/2.], dtype=np.float32)
     center_g = np.array([(bbox_g[0]+bbox_g[2])/2., (bbox_g[1]+bbox_g[3])/2.], dtype=np.float32)
 
-    # 计算中心点距离
+    # box center distance
     box_center_dis = (center_p[0] - center_g[0])**2 + (center_p[1] - center_g[1])**2
 
-    # 计算预测框和真实框的交集面积
     x_min_inter = np.maximum(bbox_p[0], bbox_g[0])
     y_min_inter = np.maximum(bbox_p[1], bbox_g[1])
     x_max_inter = np.minimum(bbox_p[2], bbox_g[2])
     y_max_inter = np.minimum(bbox_p[3], bbox_g[3])
     intersection = np.maximum(abs(x_max_inter - x_min_inter), 0) * np.maximum(abs(y_max_inter - y_min_inter), 0)
-    
-    # 计算预测框和真实框的并集面积
+
     union = area_p + area_g - intersection
 
-    # 计算预测框和真实框并集的外接矩形的对角线距离
+    # diagonal of union enclosing rectangle
     x_min_union = np.minimum(bbox_p[0], bbox_g[0])
     y_min_union = np.minimum(bbox_p[1], bbox_g[1])
     x_max_union = np.maximum(bbox_p[2], bbox_g[2])
@@ -260,42 +265,46 @@ def basic_ciou(bbox_p, bbox_g):
 
     external_dis = (x_max_union - x_min_union)**2 + (y_max_union - y_min_union)**2
 
-    # 计算iou
+    # iou
     iou = intersection / np.maximum(union, 1e-6)
 
-    # 计算box长宽比惩罚项
+    # penalty of box ratio
     v = (4 / math.pi**2) * (math.atan(bbox_w_g/bbox_h_g) - math.atan(bbox_w_p/bbox_h_p))**2
     alpha = v / np.maximum((1 - iou + v), 1e-6)
     
-    # 计算ciou
+    # ciou
     ciou = iou - (box_center_dis / np.maximum(external_dis, 1e-6)) - v*alpha
 
     return ciou
 
 
 def basic_cdiou(vertex_p, vertex_g, bbox_p, bbox_g):
+    """
+    vertex_p: [1, 16]
+    vertex_g: [1, 16]
+    bbox_p: [lt_x, ly_y, br_x, br_y]
+    bbox_g: [lt_x, ly_y, br_x, br_y]
+    """
     v_dis = 0.0
     # 计算顶点距离之和
     for i in range(len(vertex_p)//2):  # [0, 8)
         dis = math.sqrt((vertex_p[2*i] - vertex_g[2*i])**2 + (vertex_p[2*i+1] - vertex_g[2*i+1])**2)
         v_dis += dis
     
-    # 计算预测框面积
+    # pred 2d box area
     area_p = abs(bbox_p[2] - bbox_p[0]) * abs(bbox_p[3] - bbox_p[1])
-    # 计算真实框面积
+    # gt 2d box area
     area_g = abs(bbox_g[2] - bbox_g[0]) * abs(bbox_g[3] - bbox_g[1])
 
-    # 计算预测框和真实框的交集面积
     x_min_inter = np.maximum(bbox_p[0], bbox_g[0])
     y_min_inter = np.maximum(bbox_p[1], bbox_g[1])
     x_max_inter = np.minimum(bbox_p[2], bbox_g[2])
     y_max_inter = np.minimum(bbox_p[3], bbox_g[3])
     intersection = np.maximum(abs(x_max_inter - x_min_inter), 0) * np.maximum(abs(y_max_inter - y_min_inter), 0)
-    
-    # 计算预测框和真实框的并集面积
+
     union = area_p + area_g - intersection
 
-    # 计算预测框和真实框并集的外接矩形的对角线距离
+    # # diagonal of union enclosing rectangle
     x_min_union = np.minimum(bbox_p[0], bbox_g[0])
     y_min_union = np.minimum(bbox_p[1], bbox_g[1])
     x_max_union = np.maximum(bbox_p[2], bbox_g[2])
@@ -303,10 +312,10 @@ def basic_cdiou(vertex_p, vertex_g, bbox_p, bbox_g):
 
     external_dis = math.sqrt((x_max_union - x_min_union)**2 + (y_max_union - y_min_union)**2)
 
-    # 计算iou
+    # iou
     iou = intersection / np.maximum(union, 1e-6)
     
-    # 计算ciou
+    # ciou
     cdiou = iou - (v_dis / np.maximum(8*external_dis, 1e-6))
 
     return cdiou
@@ -314,7 +323,7 @@ def basic_cdiou(vertex_p, vertex_g, bbox_p, bbox_g):
 
 def basic_3diou(b1, b2):
     """
-    两个box在特定perspective下的3d iou计算
+    3d iou with different view
     left: x3_1 > x1_2
     right: x3_1 < x1_2
     b1, b2: [x0, y0, z0, x1, y1, z1, ... , x7, y7, z7]
@@ -359,14 +368,14 @@ def basic_3diou(b1, b2):
 
 def calib_param_to_matrix(focal, fi, theta, h, pcx, pcy):
     """
-    将标定参数转换为变换矩阵(世界坐标y轴沿道路方向)
-    :param focal: 焦距
-    :param fi: 俯仰角
-    :param theta: 旋转角
-    :param h: 相机高度
-    :param pcx: 主点u
-    :param pcy: 主点v
-    :return: world -> image 变换矩阵
+    world axis - y
+    :param focal:
+    :param fi: phi
+    :param theta:
+    :param h: camera height
+    :param pcx: principle point u
+    :param pcy: principle point v
+    :return: world -> image matrix
     """
     K = np.array([focal, 0, pcx, 0, focal, pcy, 0, 0, 1]).reshape(3, 3).astype(np.float)
     Rx = np.array([1, 0, 0, 0, -math.sin(fi), -math.cos(fi), 0, math.cos(fi), -math.sin(fi)]).reshape(3, 3).astype(np.float)
@@ -380,14 +389,13 @@ def calib_param_to_matrix(focal, fi, theta, h, pcx, pcy):
 
 def read_calib_params(xml_path, width, height):
     """
-    读入标定参数矩阵
-    :param xml_path: 标定xml文件路径
-    :param width: 图像宽度
-    :param height: 图像高度
-    :return: world -> image 变换矩阵
+    :param xml_path: calib xml file path
+    :param width: raw img w
+    :param height: raw img h
+    :return: world -> image matrix
     """
-    xml_dir = ET.parse(xml_path)  # 读入所有xml文件
-    root = xml_dir.getroot()  # 根结点
+    xml_dir = ET.parse(xml_path)
+    root = xml_dir.getroot()
     node_f = xml_dir.find('f')
     node_fi = xml_dir.find('fi')
     node_theta = xml_dir.find('theta')
@@ -398,10 +406,10 @@ def read_calib_params(xml_path, width, height):
 
 
 def RDUVtoXYZ(CalibTMatrix, u, v, z):
-    '''
-    func: 图像坐标--->世界坐标, 世界坐标z需要指定
-    世界坐标单位：mm
-    '''
+    """
+    func: img ---> world, z (need to specify)
+    unit: mm
+    """
     h11 = CalibTMatrix[0][0]
     h12 = CalibTMatrix[0][1]
     h13 = CalibTMatrix[0][2]
@@ -419,7 +427,7 @@ def RDUVtoXYZ(CalibTMatrix, u, v, z):
     a12 = h12 - u * h32
     a21 = h21 - v * h31
     a22 = h22 - v * h32
-    b1 = u * (h33 * z + h34) - (h13 * z + h14)  # 与之前版本有修改
+    b1 = u * (h33 * z + h34) - (h13 * z + h14)  # revised
     b2 = v * (h33 * z + h34) - (h23 * z + h24)
     x = (b1 * a22 - a12 * b2) / (a11 * a22 - a12 * a21)
     y = (a11 * b2 - b1 * a21) / (a11 * a22 - a12 * a21)
@@ -427,10 +435,10 @@ def RDUVtoXYZ(CalibTMatrix, u, v, z):
 
 
 def RDXYZToUV(CalibTMatrix, x, y, z):
-    '''
-    func: 世界坐标--->图像坐标
-    世界坐标单位：mm
-    '''
+    """'
+    func: world ---> img
+    unit：mm
+    """
     h11 = CalibTMatrix[0][0]
     h12 = CalibTMatrix[0][1]
     h13 = CalibTMatrix[0][2]
@@ -444,13 +452,15 @@ def RDXYZToUV(CalibTMatrix, x, y, z):
     h33 = CalibTMatrix[2][2]
     h34 = CalibTMatrix[2][3]
 
-    u = (h11 * x + h12 * y + h13 * z + h14) / (h31 * x + h32 * y + h33 * z + h34)  # 与之前版本有修改
+    u = (h11 * x + h12 * y + h13 * z + h14) / (h31 * x + h32 * y + h33 * z + h34)  # revised
     v = (h21 * x + h22 * y + h23 * z + h24) / (h31 * x + h32 * y + h33 * z + h34)
     return (int(u), int(v))
 
 
 def dashLine(img, p1, p2, color, thickness, interval):
-    '''绘制虚线'''
+    """
+    draw dashline
+    """
     if p1[0] > p2[0]:
         p1, p2 = p2, p1
     if p1[0] == p2[0]:
@@ -460,46 +470,23 @@ def dashLine(img, p1, p2, color, thickness, interval):
     k = (float)(p2[1] - p1[1]) / (float)(p2[0] - p1[0] + 1e-6)
     seg = (int)(len / (float)(2 * interval))
     dev_x = 2 * interval / math.sqrt(1 + k * k)
-    dev_y = k * dev_x   # 短直线向量
+    dev_y = k * dev_x
     pend1 = (p1[0] + dev_x / 2, p1[1] + dev_y / 2)
-    # 绘制虚线点
     for i in range(seg):
         pbeg = (round(p1[0] + dev_x * i), round(p1[1] + dev_y * i))
         pend = (round(pend1[0] + dev_x * i), round(pend1[1] + dev_y * i))
         cv.line(img, pbeg, pend, color, thickness)
-    # 补齐最后一段
+    # last segment
     plastBeg = (round(p1[0] + dev_x * seg), round(p1[1] + dev_y * seg))
     if plastBeg[0] < p2[0]:
         cv.line(img, plastBeg, p2, color, thickness)
 
 
-def draw_bbox3d(draw, image, vertex, color, width):
-    # 在图像中绘制3D box
-
-    # 宽度方向
-    # 0-1  2-3  4-5  6-7
-    draw.line([vertex[0], vertex[1], vertex[2], vertex[3]], fill=128, width=2)
-    draw.line([vertex[4], vertex[5], vertex[6], vertex[7]], fill=128, width=2)
-    draw.line([vertex[8], vertex[9], vertex[10], vertex[11]], fill=128, width=2)
-    draw.line([vertex[12], vertex[13], vertex[14], vertex[15]], fill=128, width=2)
-
-    # 长度方向
-    # 0-3 1-2 4-7 5-6
-    draw.line([vertex[0], vertex[1], vertex[6], vertex[7]], fill=128, width=2)
-    draw.line([vertex[2], vertex[3], vertex[4], vertex[5]], fill=128, width=2)
-    draw.line([vertex[8], vertex[9], vertex[14], vertex[15]], fill=128, width=2)
-    draw.line([vertex[10], vertex[11], vertex[12], vertex[13]], fill=128, width=2)
-
-    # 高度方向
-    # 0-4 1-5 2-6 3-7
-    draw.line([vertex[0], vertex[1], vertex[8], vertex[9]], fill=128, width=2)
-    draw.line([vertex[2], vertex[3], vertex[10], vertex[11]], fill=128, width=2)
-    draw.line([vertex[4], vertex[5], vertex[12], vertex[13]], fill=128, width=2)
-    draw.line([vertex[6], vertex[7], vertex[14], vertex[15]], fill=128, width=2)
-
-
 def cal_pred_2dvertex(perspective, base_point, l, w, h, m_trans):
-    # 根据标定结果、基准点、车辆尺寸、视角计算出3D box的顶点在图像中坐标
+    """
+    use calib matrix, base point, vehicle size (m), view,
+    to calculate vertex of 3d box in img
+    """
     w_p1 = RDUVtoXYZ(m_trans, base_point[0], base_point[1], 0)
     if perspective == 1:  # right view
         p0 = RDXYZToUV(m_trans, w_p1[0] - w * 1000, w_p1[1], w_p1[2])
@@ -522,7 +509,10 @@ def cal_pred_2dvertex(perspective, base_point, l, w, h, m_trans):
 
 
 def cal_pred_3dvertex(vertex_2d, h, m_trans):
-    # 根据标定结果、2d顶点坐标、车辆高度，计算出3D box的顶点在世界中坐标
+    """
+    use vertex of 3d box in img, vehicle height (m), calib matrix,
+    to calculate vertex of 3d box in world
+    """
     w_p0 = RDUVtoXYZ(m_trans, vertex_2d[0], vertex_2d[1], 0)
     w_p1 = RDUVtoXYZ(m_trans, vertex_2d[2], vertex_2d[3], 0)
     w_p2 = RDUVtoXYZ(m_trans, vertex_2d[4], vertex_2d[5], 0)
@@ -536,51 +526,40 @@ def cal_pred_3dvertex(vertex_2d, h, m_trans):
     w_p6[0], w_p6[1], w_p6[2],w_p7[0], w_p7[1], w_p7[2]], dtype=np.float32)
 
 
-def decode_bbox(pred_hms, pred_center, pred_vertex, pred_size, image_size, threshold, cuda, topk=100):
-    #-------------------------------------------------------------------------#
-    #   当利用512x512x3图片进行coco数据集预测的时候
-    #   h = w = 128 num_classes = 80
-    #   Hot map热力图 -> b, 80, 128, 128, 
-    #   进行热力图的非极大抑制，利用3x3的卷积对热力图进行最大值筛选
-    #   找出一定区域内，得分最大的特征点。
-    #-------------------------------------------------------------------------#
+def decode_bbox(pred_hms, pred_center, pred_vertex, pred_size, threshold, cuda, topk=100):
+    """
+    decode
+    """
     pred_hms = pool_nms(pred_hms)
     
     b, c, output_h, output_w = pred_hms.shape
     detects = []
     for batch in range(b):
-        #-------------------------------------------------------------------------#
-        #   pred_hms        128*128, num_classes    热力图
-        #   pred_center     128*128, 2              特征点的xy轴偏移情况
-        #   pred_vertex     128*128, 16             特征点对应3D框顶点
-        #   pred_size       128*128, 3              特征点对应3D尺寸
-        #-------------------------------------------------------------------------#
+        #   pred_hms        128*128, num_classes    heatmap
+        #   pred_center     128*128, 2              centroid xy offset
+        #   pred_vertex     128*128, 16             vertex of 3d box in img
+        #   pred_size       128*128, 3              vehicle size
         heat_map = pred_hms[batch].permute(1,2,0).view([-1,c])
         pred_center = pred_center[batch].permute(1,2,0).view([-1,2])
         pred_vertex = pred_vertex[batch].permute(1,2,0).view([-1,16])
         pred_size = pred_size[batch].permute(1,2,0).view([-1,3])
 
         yv, xv = torch.meshgrid(torch.arange(0, output_h), torch.arange(0, output_w))
-        #-------------------------------------------------------------------------#
-        #   xv              128*128,    特征点的x轴坐标
-        #   yv              128*128,    特征点的y轴坐标
-        #-------------------------------------------------------------------------#
+
+        #   xv              128*128,    center x
+        #   yv              128*128,    center y
         xv, yv = xv.flatten().float(), yv.flatten().float()
         if cuda:
             xv = xv.cuda()
             yv = yv.cuda()
 
-        #-------------------------------------------------------------------------#
-        #   class_conf      128*128,    特征点的种类置信度
-        #   class_pred      128*128,    特征点的种类
-        #   mask  大于置信度的位置
-        #-------------------------------------------------------------------------#
+        #   class_conf      128*128,    cls conf
+        #   class_pred      128*128,    cls
+        #   mask   index
         class_conf, class_pred = torch.max(heat_map, dim=-1)
         mask = class_conf > threshold
 
-        #-----------------------------------------#
-        #   取出得分筛选后对应的结果
-        #-----------------------------------------#
+        # filtered result
         pred_center_mask = pred_center[mask]
         pred_vertex_mask = pred_vertex[mask]
         pred_size_mask = pred_size[mask]
@@ -588,24 +567,21 @@ def decode_bbox(pred_hms, pred_center, pred_vertex, pred_size, image_size, thres
             detects.append([])
             continue     
 
-        #----------------------------------------#
-        #   计算调整后预测框的中心
-        #----------------------------------------#
         xv_mask = torch.unsqueeze(xv[mask] + pred_center_mask[..., 0], -1)
         yv_mask = torch.unsqueeze(yv[mask] + pred_center_mask[..., 1], -1)
 
-        # 计算归一化中心点坐标 --- [0, 1]
+        # normalization --- [0, 1]
         norm_center = torch.cat([xv_mask, yv_mask], dim=1)
         norm_center[:, 0] /= output_w
         norm_center[:, 1] /= output_h
 
-        # 计算归一化box3D坐标 --- [0, 1]
+        # normalization --- [0, 1]
         pred_vertex_mask[:, 0:16:2] = pred_vertex_mask[:, 0:16:2] / output_w
         pred_vertex_mask[:, 1:16:2] = pred_vertex_mask[:, 1:16:2] / output_h
 
         detect = torch.cat([norm_center, pred_vertex_mask, pred_size_mask, torch.unsqueeze(class_conf[mask],-1), torch.unsqueeze(class_pred[mask],-1).float()], dim=-1)
 
-        arg_sort = torch.argsort(detect[:,-2], descending=True)  # cls_conf倒序排列，便于筛选
+        arg_sort = torch.argsort(detect[:, -2], descending=True)  # cls_conf
         detect = detect[arg_sort]
 
         detects.append(detect.cpu().numpy()[:topk])
@@ -614,16 +590,16 @@ def decode_bbox(pred_hms, pred_center, pred_vertex, pred_size, image_size, thres
 
 def correct_vertex_norm2raw(norm_vertex, raw_image_shape):
     raw_img_h, raw_img_w = raw_image_shape
-    if raw_img_h < raw_img_w:  # 扁图
+    if raw_img_h < raw_img_w:  # w > h
         norm_vertex[:, 0:norm_vertex.shape[1]:2] = norm_vertex[:, 0:norm_vertex.shape[1]:2] * max(raw_img_h, raw_img_w)
         norm_vertex[:, 1:norm_vertex.shape[1]:2] = norm_vertex[:, 1:norm_vertex.shape[1]:2] * max(raw_img_h, raw_img_w) - abs(raw_img_h-raw_img_w)//2.
-    else:  # 竖图
+    else:  # w < h
         norm_vertex[:, 0:norm_vertex.shape[1]:2] = norm_vertex[:, 0:norm_vertex.shape[1]:2] * max(raw_img_h, raw_img_w) - abs(raw_img_h-raw_img_w)//2.
         norm_vertex[:, 1:norm_vertex.shape[1]:2] = norm_vertex[:, 1:norm_vertex.shape[1]:2] * max(raw_img_h, raw_img_w)
     return norm_vertex
 
 
-# -----------------------------高斯核函数-----------------------------------------------------#
+# -----------------------------gaussian-----------------------------------------------------#
 def draw_gaussian(heatmap, center, radius, k=1):
     diameter = 2 * radius + 1
     gaussian = gaussian2D((diameter, diameter), sigma=diameter / 6)
@@ -637,7 +613,7 @@ def draw_gaussian(heatmap, center, radius, k=1):
 
     masked_heatmap = heatmap[y - top:y + bottom, x - left:x + right]
     masked_gaussian = gaussian[radius - top:radius + bottom, radius - left:radius + right]
-    if min(masked_gaussian.shape) > 0 and min(masked_heatmap.shape) > 0:  # TODO debug
+    if min(masked_gaussian.shape) > 0 and min(masked_heatmap.shape) > 0:
         np.maximum(masked_heatmap, masked_gaussian * k, out=masked_heatmap)
     return heatmap
 
@@ -672,51 +648,4 @@ def gaussian_radius(det_size, min_overlap=0.7):
     sq3 = np.sqrt(b3 ** 2 - 4 * a3 * c3)
     r3 = (b3 + sq3) / 2
     return min(r1, r2, r3)
-# -----------------------------高斯核函数-----------------------------------------------------#
-
-
-def intersect_cross(k0, b0, k1, b1):
-    """功能 : 求取两个直线的交点，输入是两条直线: y=k*x+b"""
-    # if np.fabs(k0 - k1) < 1e-6:  # 两斜率太接近, 不能求交点
-    #     return None
-    cross_x = (b0 - b1)/(k1-k0+1e-6)
-    cross_y = k0 * cross_x + b0
-    cross = (cross_x, cross_y)
-    return cross
-
-
-def get_vanish_point(vanish_lines):
-    """功能 : 求取输入直线两两交点，输入直线格式: y=k*x+b"""
-    vanish_points = []
-    for i in range(len(vanish_lines) - 1):
-        k0, b0 = vanish_lines[i]
-        for j in range(i + 1, len(vanish_lines)):
-            k1, b1 = vanish_lines[j]
-            cross = intersect_cross(k0, b0, k1, b1)
-            if cross is not None:
-                vanish_points.append((int(cross[0]), int(cross[1])))
-    vanish_points = np.array(vanish_points)
-    vanish_point = np.mean(vanish_points, 0)
-    return vanish_point
-
-
-def get_distance_from_point_to_line(point, line_point1, line_point2):
-    # 对于两点坐标为同一点时, 返回点与点的距离
-    if line_point1 == line_point2:
-        point_array = np.array(point)
-        point1_array = np.array(line_point1)
-        return np.linalg.norm(point_array-point1_array)
-    # 计算直线的三个参数
-    A = line_point2[1] - line_point1[1]
-    B = line_point1[0] - line_point2[0]
-    C = (line_point1[1] - line_point2[1]) * line_point1[0] + \
-        (line_point2[0] - line_point1[0]) * line_point1[1]
-    # 根据点到直线的距离公式计算距离
-    distance = np.abs(A * point[0] + B * point[1] + C) / (np.sqrt(A**2 + B**2))
-    return distance
-
-
-if __name__ == "__main__":
-    calib_xml_path = "E:\\PythonCodes\\bbox3d_annotation_tools\\session6_right_data\\calib\\session6_right_calibParams.xml"
-    calib_matrix = read_calib_params(calib_xml_path, 1920, 1080)
-    print(calib_matrix)
+# -----------------------------gaussian-----------------------------------------------------#

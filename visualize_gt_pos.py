@@ -18,7 +18,7 @@ start_frame_index = int(raw_frame_start*raw_fps)
 with open(gt_pos_json_file, "r") as f:
     gt_pos_data_dict = json.load(f)
 
-# 挑选5分钟时的gt 显示至对应的图像上
+# 5min - gt visualization
 # frames id posX posY
 list_cars = gt_pos_data_dict["cars"]
 
@@ -62,7 +62,7 @@ for frm_idx in range(img_index, img_index + frame_len):
     cv.waitKey(50)
     start_frame_index += 1
 
-print("o")
+print("ok")
 
 
     # start_frame_index

@@ -20,7 +20,7 @@ from PIL import Image, ImageDraw
 
 from fpn import KeyPointDetection
 from hourglass_official import HourglassNet, Bottleneck
-from loss import focal_loss, reg_l1_loss, reproject_l1_loss, reg_iou_loss, reg_vp_loss
+from loss import focal_loss, reg_l1_loss, reproject_l1_loss, reg_iou_loss
 from dataloader import Bbox3dDatasets, bbox3d_dataset_collate
 
 
@@ -29,7 +29,7 @@ std = [0.2886383, 0.27408165, 0.27809834]
 
 
 def get_classes(classes_path):
-    '''loads the classes'''
+    """ loads the classes """
     with open(classes_path) as f:
         class_names = f.readlines()
     class_names = [c.strip() for c in class_names]
@@ -37,31 +37,30 @@ def get_classes(classes_path):
 
 
 def get_lr(optimizer):
-    '''get lr value'''
+    """ get lr value """
     for param_group in optimizer.param_groups:
         return param_group['lr']
 
 
 def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, gen, genval, Epoch, iou_type, cuda, writer):
     """
-    func: 训练一个epoch
-    net: 模型
-    backbone: 主干特征提取网络名称
-    epoch: 当前轮数
-    epoch_size: 总训练迭代数
-    epoch_size_val: 总验证迭代数
-    gen: 训练数据
-    genval: 验证数据
-    Epoch: 总训练轮数
-    cuda: 是否使用cuda
-    writer: tensorboard绘制loss曲线图
+    func: train one epoch
+    net:
+    backbone:
+    epoch: current epoch
+    epoch_size: all train epoch
+    epoch_size_val: all val epoch
+    gen: train data
+    genval: val data
+    Epoch: all epoch
+    cuda: gpu use
+    writer: tensorboard loss visualization
     """
     global train_tensorboard_step, val_tensorboard_step
     total_cls_loss, total_center_off_loss, total_vertex_loss, total_size_loss, total_reproj_loss = 0, 0, 0, 0, 0
     total_iou_loss = 0
     total_train_loss = 0
     val_loss = 0
-    total_vp_loss = 0
 
     net.train()
     with tqdm(total=epoch_size,desc=f'Epoch {epoch + 1}/{Epoch}',postfix=dict,mininterval=0.3) as pbar:
@@ -84,7 +83,7 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
             vertex_loss = 0.1*reg_l1_loss(pred_vertex, batch_vertex_regs, batch_center_masks, index = 16)
             size_loss = 0.1*reg_l1_loss(pred_size, batch_size_regs, batch_center_masks, index = 3)
             reproj_loss = 0.1*reproject_l1_loss(pred_vertex, batch_calib_matrixs, pred_size, batch_center_masks, batch_raw_box_base_points, 16, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
-            # vp_loss = reg_vp_loss(pred_vertex, batch_vertex_regs, batch_center_masks, 1, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
+
             if iou_type:
                 iou_loss = reg_iou_loss(iou_type, pred_vertex, batch_vertex_regs, batch_center_masks, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
                 if iou_loss > 1.0:
@@ -102,14 +101,14 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
             total_vertex_loss += vertex_loss.item()
             total_size_loss += size_loss.item()
             total_reproj_loss += reproj_loss.item()
-            # total_vp_loss += vp_loss.item()
+
             if iou_type:
                 total_iou_loss += iou_loss.item()
 
             loss.backward()
             optimizer.step()
             
-            # 每一个iteration都写入  step从1开始
+            # each iteration, step start from 1
             writer.add_scalar('Train_loss', loss, train_tensorboard_step)
             train_tensorboard_step += 1
 
@@ -117,15 +116,11 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
                                 'cls_loss'              : total_cls_loss / (iteration + 1),
                                 'center_loss'           : total_center_off_loss / (iteration + 1),
                                 'vertex_loss'           : total_vertex_loss / (iteration + 1),
-                                # 'vp_loss'               : total_vp_loss / (iteration+1),
                                 'size_loss'             : total_size_loss / (iteration + 1),
                                 'reproj_loss'           : total_reproj_loss / (iteration + 1),
                                 '%s_loss' % iou_type    : total_iou_loss / (iteration + 1),
                                 'lr'                    : get_lr(optimizer)})
             pbar.update(1)
-
-    # 将loss写入tensorboard，下面注释的是每个世代保存一次
-    # writer.add_scalar('Train_loss', total_train_loss/(iteration+1), epoch)
 
     net.eval()
     print('Start Validation')
@@ -148,7 +143,7 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
                 vertex_loss = 0.1*reg_l1_loss(pred_vertex, batch_vertex_regs, batch_center_masks, index = 16)
                 size_loss = 0.1*reg_l1_loss(pred_size, batch_size_regs, batch_center_masks, index = 3)
                 reproj_loss = 0.1*reproject_l1_loss(pred_vertex, batch_calib_matrixs, pred_size, batch_center_masks, batch_raw_box_base_points, 16, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
-                # vp_loss = reg_vp_loss(pred_vertex, batch_vertex_regs, batch_center_masks, 1, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
+
                 if iou_type:
                     iou_loss = reg_iou_loss(iou_type, pred_vertex, batch_vertex_regs, batch_center_masks, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
                     if iou_loss > 1.0:
@@ -162,24 +157,20 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
 
                 val_loss += loss.item()
 
-                # writer.add_scalar('Val_loss', loss, val_tensorboard_step)
-                # val_tensorboard_step += 1
-
                 pbar.set_postfix(**{'val_loss': val_loss / (iteration + 1)})
                 pbar.update(1)
 
-    # 每个epoch写入一次  epoch从1开始
+    # each epoch, step start from 1
     writer.add_scalar('Val_loss', val_loss / (epoch_size_val+1), epoch + 1)
 
     print('Finish Validation')
-    print('Epoch:'+ str(epoch+1) + '/' + str(Epoch))
+    print('Epoch:' + str(epoch+1) + '/' + str(Epoch))
     print('Total train loss: %.4f || Val loss: %.4f ' % (total_train_loss/(epoch_size+1),val_loss/(epoch_size_val+1)))
 
     print('Saving state, iter:', str(epoch+1))
-    # 保存时可记录backbone名称，方便区分
 
-    # 保存模型参数、优化器参数、epoch信息等至一个全局字典中!!
-    # 便于中断训练后提取信息，恢复训练!
+    # save epoch, model parameters, optimizer into a dict
+    # for reserve training
     state = {"epoch": epoch + 1, 
              "state_dict": model.state_dict(), 
              "optimizer": optimizer.state_dict()}
@@ -189,21 +180,21 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
 
 
 def train_from_checkpoint(model_path, model):
-    """ 从断点处接续训练 """
+    """ reserve training """
     checkpoint = torch.load(model_path)
 
     pretrained_model_dict = checkpoint["state_dict"]
     optimizer_dict = checkpoint["optimizer"]
     start_epoch = checkpoint["epoch"]
+    start_lr = optimizer_dict['param_groups'][0]['lr']
 
     model_dict = model.state_dict()
-    update_model_dict = {k: v for k, v in pretrained_model_dict.items() if np.shape(model_dict[k]) ==  np.shape(v)}
+    update_model_dict = {k: v for k, v in pretrained_model_dict.items() if np.shape(model_dict[k]) == np.shape(v)}
     model_dict.update(update_model_dict)
     model.load_state_dict(model_dict)
 
-
-    optimizer = optim.Adam(model.parameters(), lr=1e-4, weight_decay=5e-4)
-    # optimizer.load_state_dict(optimizer_dict)
+    optimizer = optim.Adam(model.parameters(), lr=start_lr, weight_decay=5e-4)
+    optimizer.load_state_dict(optimizer_dict)
 
     print('checkpoint loaded!')
 
@@ -223,7 +214,6 @@ def train_from_checkpoint(model_path, model):
     epoch_size = num_train//Batch_size
     epoch_size_val = num_val//Batch_size
 
-    # 解冻后训练
     model.unfreeze_backbone()
 
     for epoch in range(Freeze_Epoch,Unfreeze_Epoch):
@@ -231,65 +221,65 @@ def train_from_checkpoint(model_path, model):
         lr_scheduler.step(val_loss)
         
         early_stopping(val_loss, net)
-        # 若满足 early stopping 要求
+        # early stopping
         if early_stopping.early_stop:
             print("Early stopping")
-            # 结束模型训练
+            # stop training
             break
 
 
 if __name__ == "__main__":
 
-    # 创建训练模型保存文件夹
+    # model save dir
     if not os.path.exists("./logs"):
         os.makedirs("./logs")
     
-    # 类别文件
+    # cls file path
     classes_path = 'model_data/classes.txt'
 
-    # 获取classes和数量
+    # get cals name and num
     class_names = get_classes(classes_path)
     num_classes = len(class_names)
 
-    # 是否使用仅backbone的预训练权重
+    # pretrained backbone
     pretrain = True
 
-    # 是否使用可变形卷积
+    # deformable conv
     deform = False
 
-    # 是否使用Cuda
+    # gpu
     Cuda = True
 
-    # 是否断点续训练
+    # reverse training
     train_cont = False
     train_cont_model_path = "logs/efficientnetb5-Epoch60-ciou-Total_train_Loss7.4935-Val_Loss7.3983.pth"
 
-    # 是否使用iou loss, 不使用设置为None, 
-    # 使用则从{iou, giou, diou, ciou, cdiou}中选取任意一个
+    # iou loss,
+    # {None, iou, giou, diou, ciou, cdiou}
     iou_loss_type = "ciou"
     if iou_loss_type:
         assert iou_loss_type in ["iou", "giou", "diou", "ciou", "cdiou"]
 
-    # 获取模型
+    # model index
     backbone_resnet_index = {"resnet18": 0, "resnet34": 1, "resnet50": 2, "resnet101": 3, "resnet152": 4}
     backbone_efficientnet_index = {"efficientnetb0": 0, "efficientnetb1": 1, "efficientnetb2": 2,
                      "efficientnetb3": 3, "efficientnetb4": 4, "efficientnetb5": 5, "efficientnetb6": 6, "efficientnetb7": 7}
     
-    # 指定backbone
+    # backbone
     backbone = "resnet50"
     list_backbones = list(backbone_resnet_index.keys()) + list(backbone_efficientnet_index.keys()) + ["hourglass", "darknet"]
     assert backbone in list_backbones
     
     if backbone == "darknet":
-        # 输入图片的大小
+        # input size
         input_shape = (416, 416, 3)
         output_shape = (104, 104)
     else:
-        # 输入图片的大小
+        # input size
         input_shape = (512, 512, 3)
         output_shape = (128, 128)
 
-    # 根据模型设置batch_size
+    # model - batch_size
     batch_size_dict = {"resnet":[16, 8], "efficientnet":[16, 4], "hourglass":[2, 1], "darknet":[16, 8]}
     if deform:
         batch_size_dict.update({"darknet":[8, 4]})
@@ -305,37 +295,27 @@ if __name__ == "__main__":
     if backbone == "hourglass":
         model = HourglassNet(Bottleneck, num_stacks=8, num_blocks=1, num_classes=num_classes)
         batch_size_list = batch_size_dict[backbone]
-        if pretrain:  # 额外加载hourglass预训练模型
+        if pretrain:  # hourglass
             model_path = "model_data/hourglass-s8b1-best.pth.tar"
             print('Loading pretrained weights into state dict...')
 
-            model_dict = model.state_dict()  # 原始模型字典
+            model_dict = model.state_dict()
             pretrained_dict = torch.load(model_path)
-            state_dict = pretrained_dict['state_dict']  # 加载模型字典
-            matched_model_dict = ["module." + mdk for mdk in model_dict.keys()]  # 将原始模型字典的键修改到加载的模型
-            # k.replace("module.", "")  保存时将加载模型字典中的键前面的module.去掉，恢复原始
+            state_dict = pretrained_dict['state_dict']
+            matched_model_dict = ["module." + mdk for mdk in model_dict.keys()]
             final_model_dict = {k.replace("module.", ""): v for k, v in state_dict.items() if k in matched_model_dict and model_dict[k.replace("module.", "")].shape == v.shape}
-            model_dict.update(final_model_dict)  # 更新到原始模型字典中
+            model_dict.update(final_model_dict)
             model.load_state_dict(model_dict, strict=False)
             print('Finished!')
     if backbone == "darknet":
         model = KeyPointDetection(model_name=backbone, model_index=0, num_classes=num_classes, pretrained_weights=pretrain, deform=deform)
         batch_size_list = batch_size_dict[backbone]
-    # 断点续训练
-    # 1、只包含模型参数
-    # model_path = "logs\Epoch120-Total_train_Loss2.7936-Val_Loss4.7216.pth"
-    # print('Loading weights into state dict...')
-    # model_dict = model.state_dict()
-    # pretrained_dict = torch.load(model_path)
-    # pretrained_dict = {k: v for k, v in pretrained_dict.items() if np.shape(model_dict[k]) ==  np.shape(v)}
-    # model_dict.update(pretrained_dict)
-    # model.load_state_dict(model_dict)
-    # print('Finished!')
 
     net = model.train()
 
-    # 设置早停
-    patience = 7  # 当验证集损失在连续7个epoch训练周期中都没有得到降低时，停止模型训练，以防止模型过拟合
+    # early stopping
+    # prevent overfitting
+    patience = 7
     best_model_path = "logs/%s-best-checkpoint.pth" % backbone
     early_stopping = EarlyStopping(patience=patience, verbose=True, path=best_model_path)
 
@@ -344,11 +324,10 @@ if __name__ == "__main__":
         cudnn.benchmark = True
         net = net.cuda()
 
-    # 获得图片路径和标签
+    # train txt
     annotation_path = 'DATA2021_train.txt'
 
-    # 划分验证集
-    # 验证集和训练集的比例为1:9
+    # train/val/test
     # 8:1:1
     val_split = 1/9
     with open(annotation_path) as f:
@@ -358,13 +337,12 @@ if __name__ == "__main__":
     np.random.seed(None)
     num_val = int(len(lines)*val_split)
     num_train = len(lines) - num_val
-    # 将val写入val.txt中(每次生成都一样)
     with open("DATAdevkit/DATA2021/ImageSets/Main/val.txt", "w") as fval:
         for line in lines[num_train:]:
             fval.write(line.split(" ")[0].split("/")[-1].split(".")[0] + "\n")
 
-    # 构建绘制loss曲线图writer
-    writer = SummaryWriter(log_dir='train-logs',flush_secs=60)
+    # tensorboard writer
+    writer = SummaryWriter(log_dir='train-logs', flush_secs=60)
     if not deform:
         if Cuda:
             graph_inputs = torch.from_numpy(np.random.rand(1,3,input_shape[0],input_shape[1])).type(torch.FloatTensor).cuda()
@@ -374,19 +352,11 @@ if __name__ == "__main__":
 
     train_tensorboard_step = 1
     val_tensorboard_step = 1
-    
-    #   主干特征提取网络特征通用，冻结训练可以加快训练速度
-    #   也可以在训练初期防止权值被破坏。
-    #   Init_Epoch为起始世代
-    #   Freeze_Epoch为冻结训练的世代
-    #   Epoch总训练世代
-    #   提示OOM或者显存不足请调小Batch_size
 
     if train_cont:
         train_from_checkpoint(train_cont_model_path, model)
     else:
         if True:
-            # 超参数设置
             lr = 1e-3
             Batch_size = batch_size_list[0]
             Init_Epoch = 0
@@ -405,14 +375,15 @@ if __name__ == "__main__":
             epoch_size = num_train//Batch_size
             epoch_size_val = num_val//Batch_size
 
-            # 冻结一定部分训练
             model.freeze_backbone()
 
-            # # 开始训练前展示训练样本
+            # # show train samples, and save
+            # if not os.path.exists("./batch_samples"):
+            #     os.makedirs("./batch_samples")
             # for step, data in enumerate(gen, start = 0):
-            #     # batch_center_reg: 中心点偏移量
+            #     # batch_center_reg: center offset
             #     img, calib_matrix, batch_hm, batch_center_reg, batch_vertex_reg, batch_size_reg, batch_center_mask, batch_box_perspective, batch_base_point, raw_img_w, raw_img_h = data
-                
+
             #     for num in range(len(img)):
             #         plt.figure()
             #         raw_img = img[num] # numpy格式, BGR, CHW
@@ -423,13 +394,12 @@ if __name__ == "__main__":
             #         max_size=max(raw_img_w[num],raw_img_h[num])
             #         minus_size=abs(raw_img_w[num]-raw_img_h[num])
 
-            #         pil_raw_img=Image.fromarray(raw_img).resize((max_size,max_size)) # 返回PIL格式带灰条原图
+            #         pil_raw_img=Image.fromarray(raw_img).resize((max_size,max_size))
             #         draw=ImageDraw.Draw(pil_raw_img)
 
-            #         # 绘制中心点
-            #         t_list = np.where(batch_center_mask[num] == 1.0)  # 遍历图像域中所有目标点
+            #         t_list = np.where(batch_center_mask[num] == 1.0)  # object
             #         for y, x in zip(t_list[0], t_list[1]):
-            #             # 显示到带灰条原图上
+            #             # show in resized img
             #             center = ([x, y] + batch_center_reg[num, y, x]) * max_size // output_shape[0]
             #             vertex = batch_vertex_reg[num, y, x] * max_size // output_shape[0]
 
@@ -438,21 +408,21 @@ if __name__ == "__main__":
             #             cls_name = class_names[cls_id]
             #             draw.text([center[0], center[1]-10], cls_name, fill=(255, 0, 0))
 
-            #             # 宽度方向
+            #             # width
             #             # 0-1  2-3  4-5  6-7
             #             draw.line([vertex[0], vertex[1], vertex[2], vertex[3]], fill=128, width=2)
             #             draw.line([vertex[4], vertex[5], vertex[6], vertex[7]], fill=128, width=2)
             #             draw.line([vertex[8], vertex[9], vertex[10], vertex[11]], fill=128, width=2)
             #             draw.line([vertex[12], vertex[13], vertex[14], vertex[15]], fill=128, width=2)
 
-            #             # 长度方向
+            #             # length
             #             # 0-3 1-2 4-7 5-6
             #             draw.line([vertex[0], vertex[1], vertex[6], vertex[7]], fill=128, width=2)
             #             draw.line([vertex[2], vertex[3], vertex[4], vertex[5]], fill=128, width=2)
             #             draw.line([vertex[8], vertex[9], vertex[14], vertex[15]], fill=128, width=2)
             #             draw.line([vertex[10], vertex[11], vertex[12], vertex[13]], fill=128, width=2)
 
-            #             # 高度方向
+            #             # height
             #             # 0-4 1-5 2-6 3-7
             #             draw.line([vertex[0], vertex[1], vertex[8], vertex[9]], fill=128, width=2)
             #             draw.line([vertex[2], vertex[3], vertex[10], vertex[11]], fill=128, width=2)
@@ -462,8 +432,9 @@ if __name__ == "__main__":
 
             #         plt.subplot(2,2,1)
             #         plt.imshow(pil_raw_img)  # RGB
+            #         pil_raw_img.save("batch_samples/batch_sample_%s.png" % str(num))
 
-            #         # 绘制热力图
+            #         # heatmap
             #         plt.subplot(2,2,2)
             #         hotmaps = batch_hm[num][...,0]
             #         print(hotmaps.shape)
@@ -471,15 +442,16 @@ if __name__ == "__main__":
             #         heatmap /= np.max(heatmap)
             #         plt.imshow(heatmap)
 
-            #         # 将灰度图转换为伪彩色图
+            #         # pseudo color map
             #         plt.subplot(2,2,3)
             #         heatmap = cv.resize(heatmap, (512, 512))
             #         heatmap = np.uint8(255 * heatmap)
             #         heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
+            #         cv.imwrite("batch_samples/batch_heatmap_%s.png" % str(num), heatmap)
             #         raw_img = cv.cvtColor(raw_img, cv.COLOR_RGB2BGR)
             #         superimposed_img = heatmap * 0.4 + raw_img * 0.8  # BGR
 
-            #         cv.imwrite("img/hot.jpg", superimposed_img)
+            #         cv.imwrite("batch_samples/batch_merge_%s.png" % str(num), superimposed_img)
             #         superimposed_img = np.array(superimposed_img, dtype=np.uint8)
             #         superimposed_img = cv.cvtColor(superimposed_img, cv.COLOR_BGR2RGB)
             #         plt.imshow(superimposed_img)
@@ -510,7 +482,6 @@ if __name__ == "__main__":
             epoch_size = num_train//Batch_size
             epoch_size_val = num_val//Batch_size
 
-            # 解冻后训练
             model.unfreeze_backbone()
 
             for epoch in range(Freeze_Epoch,Unfreeze_Epoch):
@@ -518,8 +489,8 @@ if __name__ == "__main__":
                 lr_scheduler.step(val_loss)
                 
                 early_stopping(val_loss, net)
-                # 若满足 early stopping 要求
+                # early stopping
                 if early_stopping.early_stop:
                     print("Early stopping")
-                    # 结束模型训练
+                    # stop training
                     break
