@@ -2,8 +2,7 @@
 /__pycache__/
 /nets/__pycache__/
 
-/DATAdevkit/*.txt
-/DATAdevkit/*.xml
+/DATAdevkit/
 
 # ignore all .jpg .xml .txt .zip files
 *.jpg

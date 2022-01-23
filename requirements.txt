@@ -1,0 +1,7 @@
+opencv-python==4.4.0.40
+matplotlib==3.0.3
+tensorboard==2.5.0
+tensorboardX==2.2
+tqdm==4.45.0
+torchstat==0.0.7
+torchsummary==1.5.1
