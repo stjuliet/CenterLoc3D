@@ -1,8 +1,8 @@
 # CenterLoc3D: Monocular 3D Vehicle Localization Network for Roadside Surveillance Cameras
 
-Pytorch implementation of 3D vehicle detection and localization network for roadside surveillance cameras
+Pytorch implementation of 3D vehicle detection and localization network for roadside surveillance cameras.
 
-pdf download: ------
+pdf download: [link]()
 
 ## Environments
 
@@ -34,14 +34,14 @@ Please download the [SVLD-3D]() dataset with annotations, and put the downloaded
 
 ## Training
 
-Run the following command to train with resent-50 backbone(support multi gpus in a single machine):
+- Run the following command to train with resent-50 backbone(support multi gpus in a single machine):
 
 ```
 cd train
 python train.py -backbone resnet50 -gpu True -gpu_index 0
 ```
 
-if start training successfully, use tensorboard to the loss change:
+- If start training successfully, use tensorboard to see the loss change:
 ```
 (train directory)
 tensorboard --logdir="../train-logs"
@@ -49,29 +49,29 @@ tensorboard --logdir="../train-logs"
 
 ## Prediction
 
+set ```record_result=True``` to save txt files.
+
 - single frame predition: ```./predict/single_predict.py```
 
 - batch frame predition with annotation: ```./predict/batch_predict.py```
 
 - batch frame predition without annotation: ```./predict/batch_predict_no_anno.py```
 
-set ```record_result=True``` to save txt files.
-
 ## Evaluation Metrics
 
-step 1. set model_path, classes_path, backbone in ```./predict/box_predict.py```.
+- step 1. set model_path, classes_path, backbone in ```./predict/box_predict.py```.
 
 ### AP
-
-step 2. Run ```./eval_metrics/get_gt_txt_2d3d.py``` to generate ground-truth txt files in ```./(val/test)/input-2d(3d)/ground-truth```.
-
-step 3. Run ```./predict/batch_predict.py``` to generate detection txt files in ```./(val/test)/input-2d(3d)/detection-results```.
 
 set ```record_result = True``` to save detection txt files.
 
 set ```save_test_img = True``` to save detection img files.
 
-format of ground-truth/detection-results 2D txt file:
+- step 2. Run ```./eval_metrics/get_gt_txt_2d3d.py``` to generate ground-truth txt files in ```./(val/test)/input-2d(3d)/ground-truth```.
+
+- step 3. Run ```./predict/batch_predict.py``` to generate detection txt files in ```./(val/test)/input-2d(3d)/detection-results```.
+
+- format of ground-truth/detection-results 2D txt file:
 ```
 gt:
 type xmin ymin xmax ymax
@@ -84,7 +84,7 @@ type score xmin ymin xmax ymax
 ...
 ```
 
-format of ground-truth/detection-results 3D txt file:
+- format of ground-truth/detection-results 3D txt file:
 ```
 gt:
      [        mm         ] [   m  ] [  mm  ]
@@ -99,13 +99,17 @@ type score x1 y1 z1 ... x8 y8 z8 lv wv hv cx cy cz
 ...
 ```
 
-step 4. Run ```./eval_metrics/get_map_2d.py```, ```./eval_metrics/get_map_3d.py``` to get AP results in ```./(val/test)```.
+- step 4. Run ```./eval_metrics/get_map_2d.py```, ```./eval_metrics/get_map_3d.py``` to get AP results in ```./(val/test)```.
 
 ### Localization, 3D vehicle dimension
 
-Step 5. Run ```./eval_metrics/calc_pos_size_precision.py``` to get precision and error of localization and dimension, and top-view visualization of localization and error curves.
+- Step 5. Run ```./eval_metrics/calc_pos_size_precision.py``` to get precision and error of localization and dimension, and top-view visualization of localization and error curves.
 
 # Acknowledgement
 [CenterNet](https://github.com/bubbliiiing/centernet-pytorch)
 
 # Citations
+If you find our work helpful to your research, please cite our paper.
+```
+bibtex
+```
