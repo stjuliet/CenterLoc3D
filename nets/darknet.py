@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from deform_conv import DeformConv2d
+from nets.deform_conv import DeformConv2d
 
 
 # mish activation function

@@ -1,54 +1,77 @@
-# bbox3d_recognition
+# CenterLoc3D: Monocular 3D Vehicle Localization Network for Roadside Surveillance Cameras
 
-单目交通场景车辆三维目标检测网络的Pytorch实现✌✌
+Pytorch implementation of 3D vehicle detection and localization network for roadside surveillance cameras
 
-## 运行环境
+pdf download: ------
+
+## Environments
 
 - Windows 10
 
-- Python 3.6.2
+- Python 3.6.13
 
-- PyTorch 1.4.0
+- PyTorch 1.8.0
 
-- torchvision 0.4.2
+- torchvision 0.9.0
 
 - CUDA 10.1
 
 - cuDNN 7.6.5
 
-- tensorboard 2.5.0、tensorboardX 2.2.0、tensorflow-gpu 1.9.0
+- tensorboard 2.5.0, tensorboardX 2.2
 
-## 数据集及训练配置流程
+To install this repo, please refer to [INSTALL.md](INSTALL.md).
 
-1. 采用Labelimg3D标注工具进行标注，格式类VOC，存放于任意路径
+## Dataset Preparation
 
-2. 使用copy_dataset.py将数据集图片及标注文件复制到DATAdevkit/DATA2021/Annotations和DATAdevkit/DATA2021/JPEGImages两个文件夹下
+Please download the [SVLD-3D]() dataset with annotations, and put the downloaded data folder into ./DATAdevkit.
 
-3. 运行DATAdevkit/DATA2021/split_train_val_test.py划分训练集\验证集\测试集，在DATAdevkit/DATA2021/ImageSets/Main文件夹下生成train.txt、trainval.txt、val.txt、test.txt
+### Split dataset for training
 
-4. 运行data2script.py将真实标签生成DATA2021_train.txt、DATA2021_val.txt、DATA2021_test.txt用于训练读取标签数据
+- Run ```DATAdevkit/DATA2021/split_train_val_test.py``` to split train/val/test dataset. Then, ```train.txt```, ```trainval.txt```, ```val.txt``` and ```test.txt``` will be generated in ```./DATAdevkit/DATA2021/ImageSets/Main```.
 
-5. 设置超参数（包括batch size, epoch等），运行train.py开始训练（可设置断点恢复训练）
+- Run ```./dataset/data2script.py``` to generate ```./dataset/DATA2021_train.txt```, ```./dataset/DATA2021_val.txt```, ```./dataset/DATA2021_test.txt```.
 
-## 预测流程
+## Training
 
-预测时均可设置record_result，控制是否记录预测结果到txt文件用于评价网络mAP
+Run the following command to train with resent-50 backbone(support multi gpus in a single machine):
 
-- single_predict.py --- 单张图像预测
+```
+cd train
+python train.py -backbone resnet50 -gpu True -gpu_index 0
+```
 
-- batch_predict.py --- 批量图像预测（带标签，可用于指标评价）
+if start training successfully, use tensorboard to the loss change:
+```
+(train directory)
+tensorboard --logdir="../train-logs"
+```
 
-- batch_predict_no_anno.py --- 批量图像预测（不带标签，不可用于指标评价，仅能用于可视化）
+## Prediction
 
-## 评价指标
+- single frame predition: ```./predict/single_predict.py```
 
-- 2d/3d mAP (阈值参数分别为0.5，0.7)
+- batch frame predition with annotation: ```./predict/batch_predict.py```
 
-step 1. 在box_predict.py中设置训练好的模型路径、backbone名称等参数
+- batch frame predition without annotation: ```./predict/batch_predict_no_anno.py```
 
-step 2. 运行get_gt_txt_2d3d.py获得真实标签结果（写入(val/test)/input-2d(3d)/ground-truth中，包括真实标签txt），运行batch_predict.py获得预测结果（写入(val/test)/input-2d(3d)/detection-results中，包括检测结果可视化、热力图可视化和检测结果txt），其中可指定在val/test数据集上
+set ```record_result=True``` to save txt files.
 
-ground-truth/detection-results 2D txt文件格式：
+## Evaluation Metrics
+
+step 1. set model_path, classes_path, backbone in ```./predict/box_predict.py```.
+
+### AP
+
+step 2. Run ```./eval_metrics/get_gt_txt_2d3d.py``` to generate ground-truth txt files in ```./(val/test)/input-2d(3d)/ground-truth```.
+
+step 3. Run ```./predict/batch_predict.py``` to generate detection txt files in ```./(val/test)/input-2d(3d)/detection-results```.
+
+set ```record_result = True``` to save detection txt files.
+
+set ```save_test_img = True``` to save detection img files.
+
+format of ground-truth/detection-results 2D txt file:
 ```
 gt:
 type xmin ymin xmax ymax
@@ -61,7 +84,7 @@ type score xmin ymin xmax ymax
 ...
 ```
 
-ground-truth/detection-results 3D txt文件格式：
+format of ground-truth/detection-results 3D txt file:
 ```
 gt:
      [        mm         ] [   m  ] [  mm  ]
@@ -76,8 +99,13 @@ type score x1 y1 z1 ... x8 y8 z8 lv wv hv cx cy cz
 ...
 ```
 
-step 3. 分别运行get_map_2d.py、get_map_3d.py获得评价结果，保存至(val/test)文件夹下（带阈值区分）
+step 4. Run ```./eval_metrics/get_map_2d.py```, ```./eval_metrics/get_map_3d.py``` to get AP results in ```./(val/test)```.
 
-- 定位精度、三维物理尺寸精度
+### Localization, 3D vehicle dimension
 
-在评价完2d/3d mAP的基础上，运行calc_pos_size_precision.py，可获得测试集中定位、三维物理尺寸的精度和误差，对于误差可以细化至分场景，并且能够输出定位俯视图、定位和尺寸误差曲线图（误差与车辆-相机距离）
+Step 5. Run ```./eval_metrics/calc_pos_size_precision.py``` to get precision and error of localization and dimension, and top-view visualization of localization and error curves.
+
+# Acknowledgement
+[CenterNet](https://github.com/bubbliiiing/centernet-pytorch)
+
+# Citations

@@ -2,10 +2,11 @@
 /__pycache__/
 /nets/__pycache__/
 
+/DATAdevkit/*.txt
+/DATAdevkit/*.xml
+
 # ignore all .jpg .xml .txt .zip files
 *.jpg
-*.xml
-*.txt
 *.zip
 
 /test/
@@ -14,15 +15,10 @@
 /img/
 /logs/
 
-/logs-efficientnetb5/
-/logs-no_iou_loss/
-/logs-no_iou_and_project_loss/
-/logs-baseline/
-/logs-all-modules/
-/logs-three-scenes-pre/
+/model_data/*.pth
+/model_data/*.tar
 
-/model_data/
 /train-logs/
 
-/DATAdevkit/
+
 
