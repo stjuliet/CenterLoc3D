@@ -16,8 +16,8 @@ MATCHED_NUM = 0
 SCENE_NUM = 0
 
 # postion visualization (set once to True only)
-vis_pos = False
-vis_curve = True
+vis_pos = True
+vis_curve = False
 
 det_txt_dir = "../%s/input-3D/detection-results" % mode
 gt_txt_dir = "../%s/input-3D/ground-truth" % mode
@@ -104,7 +104,7 @@ for i in tqdm(range(len(list_det_txt))):  # img files
     f_gt = open(os.path.join(gt_txt_dir, list_gt_txt[i]), "r")
     list_gts = f_gt.readlines()
 
-    if (i > 0 and list_det_txt[i].split("_")[:2] != list_det_txt[i-1].split("_")[:2]):
+    if i > 0 and list_det_txt[i].split("_")[:2] != list_det_txt[i-1].split("_")[:2]:
         SCENE_NUM += 1
     pers_r = int(valid_pers[SCENE_NUM][0]) * 1000 / 2
     pers_pr = int(valid_pers[SCENE_NUM][1]) * 1000 / 2
@@ -214,8 +214,8 @@ for i in tqdm(range(len(list_det_txt))):  # img files
 
         plt.legend(loc="best", prop=font_legend)
 
-        plt.savefig(os.path.join("../%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_loc_curve-%s.png"%str(MINOVERLAP)))
-        # plt.savefig(os.path.join("%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_size_curve-%s.png"%str(MINOVERLAP)))
+        plt.savefig(os.path.join("../%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_loc_curve-%s.eps"%str(MINOVERLAP)), format="eps")
+        # plt.savefig(os.path.join("%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_size_curve-%s.eps"%str(MINOVERLAP)), format="eps")
         plt.close()
 
         # clear all variables after figure saved
@@ -256,15 +256,15 @@ for i in tqdm(range(len(list_det_txt))):  # img files
 
         plt.legend(loc="best", prop=font_legend)
 
-        plt.savefig(os.path.join("../%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_loc_curve-%s.png"%str(MINOVERLAP)))
-        # plt.savefig(os.path.join("%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_size_curve-%s.png"%str(MINOVERLAP)))
+        plt.savefig(os.path.join("../%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_loc_curve-%s.eps"%str(MINOVERLAP)), format="eps")
+        # plt.savefig(os.path.join("%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_size_curve-%s.eps"%str(MINOVERLAP)), format="eps")
         plt.close()
     
     if vis_curve:
         plt.close()
 
     if vis_pos:
-        plt.savefig(os.path.join("../%s/input-3D/visualize-pos-%s" % (mode, str(MINOVERLAP)), list_det_txt[i].split(".")[0] + "_vispos-%s.png"%str(MINOVERLAP)))
+        plt.savefig(os.path.join("../%s/input-3D/visualize-pos-%s" % (mode, str(MINOVERLAP)), list_det_txt[i].split(".")[0] + "_vispos-%s.eps"%str(MINOVERLAP)), format="eps")
         plt.close()
 
 # save final error and precision of 3d size and centroid
