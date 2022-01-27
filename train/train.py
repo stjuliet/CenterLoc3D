@@ -179,7 +179,7 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
              "state_dict": model.state_dict(), 
              "optimizer": optimizer.state_dict()}
 
-    torch.save(state, 'logs/%s-Epoch%d-%s-Total_train_Loss%.4f-Val_Loss%.4f.pth'%(backbone,(epoch+1),iou_type,total_train_loss/(epoch_size+1),val_loss/(epoch_size_val+1)))
+    torch.save(state, '../logs/%s-Epoch%d-%s-Total_train_Loss%.4f-Val_Loss%.4f.pth'%(backbone,(epoch+1),iou_type,total_train_loss/(epoch_size+1),val_loss/(epoch_size_val+1)))
     return val_loss/(epoch_size_val+1)
 
 
@@ -423,7 +423,7 @@ if __name__ == "__main__":
             # # show train samples, and save
             # if not os.path.exists("../batch_samples"):
             #     os.makedirs("../batch_samples")
-            # for step, data in enumerate(gen, start = 0):
+            # for step, data in enumerate(gen, start=0):
             #     # batch_center_reg: center offset
             #     img, calib_matrix, batch_hm, batch_center_reg, batch_vertex_reg, batch_size_reg, batch_center_mask, batch_box_perspective, batch_base_point, raw_img_w, raw_img_h = data
             #
@@ -434,10 +434,10 @@ if __name__ == "__main__":
             #         raw_img = np.array((raw_img * std + mean) * 255.).astype(np.uint8)
             #         raw_img = cv.cvtColor(raw_img, cv.COLOR_BGR2RGB)  # RGB
             #
-            #         max_size=max(raw_img_w[num],raw_img_h[num])
-            #         minus_size=abs(raw_img_w[num]-raw_img_h[num])
+            #         max_size = max(raw_img_w[num],raw_img_h[num])
+            #         minus_size = abs(raw_img_w[num]-raw_img_h[num])
             #
-            #         pil_raw_img=Image.fromarray(raw_img).resize((max_size,max_size))
+            #         pil_raw_img = Image.fromarray(raw_img).resize((max_size,max_size))
             #         draw=ImageDraw.Draw(pil_raw_img)
             #
             #         t_list = np.where(batch_center_mask[num] == 1.0)  # object
@@ -479,7 +479,7 @@ if __name__ == "__main__":
             #
             #         # heatmap
             #         plt.subplot(2,2,2)
-            #         hotmaps = batch_hm[num][...,0]
+            #         hotmaps = batch_hm[num][...,2]
             #         print(hotmaps.shape)
             #         heatmap = np.maximum(hotmaps, 0)
             #         heatmap /= np.max(heatmap)
@@ -501,7 +501,7 @@ if __name__ == "__main__":
             #
             #     plt.show()
 
-            for epoch in range(Init_Epoch,Freeze_Epoch):
+            for epoch in range(Init_Epoch, Freeze_Epoch):
                 val_loss = fit_one_epoch(net,args.backbone,optimizer,epoch,epoch_size,epoch_size_val,gen,gen_val,Freeze_Epoch,args.iou_loss_type,args.gpu, writer)
                 lr_scheduler.step(val_loss)
 

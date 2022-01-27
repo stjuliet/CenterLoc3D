@@ -155,7 +155,7 @@ def reg_iou_loss(iou_type, pred_vertex, target, mask, perspective, fp_size, inpu
         target_new[b, :, :, 0:16:2] = target[b, :, :, 0:16:2] * max(image_w, image_h) / featmap_h
         target_new[b, :, :, 1:16:2] = target[b, :, :, 1:16:2] * max(image_w, image_h) / featmap_h - abs(image_w-image_h)/2.
 
-        t_list = np.where(mask[b].cpu() == 1.0)  # 遍历图像域中所有目标点
+        t_list = np.where(mask[b].cpu() == 1.0)  # all object
         for y, x in zip(t_list[0], t_list[1]):
             pers = perspective[b, y, x]
             if pers == 1:   # right view

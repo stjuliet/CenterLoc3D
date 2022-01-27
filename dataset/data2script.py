@@ -13,7 +13,7 @@ def convert_annotation(year, image_id, list_file):
     in_file = open('../DATAdevkit/%s/Annotations/%s.xml'%(year, image_id), encoding='utf-8')
     tree = ET.parse(in_file)
     root = tree.getroot()
-    
+    img_format = str(tree.find('filename').text).split(".")[-1]  # "jpg" or "png"
     # calib xml path (only reserve file name)
     calib_xml_path = str(tree.find('calibfile').text).split("/")[-1]
 
@@ -48,9 +48,10 @@ def convert_annotation(year, image_id, list_file):
         # line
         # file_path (outer write)
         # calib_xml_path left,top,width,height,cls_id,cx1,cy1,u0,v0,...,u7,v7,v_l,v_w,v_h,pers,bpx1,bpx2  (29 items)
-        if idx == 0:
+        if idx == 0:  # img, calib file only needs to be written once for a single img
             if image_set == "test":
                 year = "TESTDATA2021"
+            list_file.write('../DATAdevkit/%s/JPEGImages/%s.%s' % (year, image_id, img_format))  # write absolute path of imgs to txt
             list_file.write(" " + os.path.join('../DATAdevkit/%s/Calib'%(year), calib_xml_path))
         single_line = " " + ",".join([box for box in bbox2d_data]) + "," + str(veh_cls_id) + "," + \
                         ",".join([centre for centre in veh_centre_data]) + "," + ",".join([str(vertex) for vertex in veh_vertex_data]) + "," + \
@@ -59,8 +60,6 @@ def convert_annotation(year, image_id, list_file):
 
 
 if __name__ == "__main__":
-    last_wd = os.path.abspath(os.path.join(os.getcwd(), ".."))
-
     for year, image_set in sets:  # train/val/test
         image_ids = open('../DATAdevkit/%s/ImageSets/Main/%s.txt'%(year, image_set)).read().strip().split()  # train/val/test
         list_file = open('%s_%s.txt'%(year, image_set), 'w')  # write to a new txt
@@ -68,7 +67,6 @@ if __name__ == "__main__":
             # file_path calib_xml_path left,top,width,height,cls_id,cx1,cy1,u0,v0,...,u7,v7,v_l,v_w,v_h,pers,bpx1,bpx2
             if image_set == "test":
                 year = "TESTDATA2021"
-            list_file.write('%s/DATAdevkit/%s/JPEGImages/%s.jpg'%(last_wd, year, image_id))  # write absolute path of imgs to txt
             convert_annotation(year, image_id, list_file)
             list_file.write('\n')
         list_file.close()

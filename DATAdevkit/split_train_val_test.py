@@ -6,9 +6,9 @@ import os
 import random
 random.seed(0)  # keep split results same
 
-trainval_xmlfilepath = "DATAdevkit/DATA2021/Annotations"
-test_xmlfilepath = "DATAdevkit/TESTDATA2021/Annotations"
-saveBasePath = "DATAdevkit/DATA2021/ImageSets/Main"
+trainval_xmlfilepath = "../DATAdevkit/DATA2021/Annotations"
+test_xmlfilepath = "../DATAdevkit/TESTDATA2021/Annotations"
+saveBasePath = "../DATAdevkit/DATA2021/ImageSets/Main"
 
 # usually 9:1
 trainval_percent = 1  # test from TESTDATA2021
