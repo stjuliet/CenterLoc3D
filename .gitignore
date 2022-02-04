@@ -3,6 +3,7 @@
 /nets/__pycache__/
 
 /DATAdevkit/
+/videos/
 
 # ignore all .jpg .xml .txt .zip files
 *.jpg
