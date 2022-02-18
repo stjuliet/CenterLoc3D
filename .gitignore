@@ -8,6 +8,7 @@
 # ignore all .jpg .xml .txt .zip files
 *.jpg
 *.zip
+*.rar
 
 /test/
 /val/

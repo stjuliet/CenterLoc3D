@@ -13,7 +13,7 @@ pip install torch==1.8.0+cu101 torchvision==0.9.0+cu101 torchaudio==0.8.0 -f htt
 
 ### 3. Clone the repository:
 ```
-git clone https://github.com/stjuliet/CenterDet3D
+git clone https://github.com/stjuliet/CenterLoc3D
 ```
 
 ### 4. Install the requirements:

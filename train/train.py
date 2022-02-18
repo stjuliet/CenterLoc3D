@@ -410,16 +410,16 @@ if __name__ == "__main__":
 
             train_dataset = Bbox3dDatasets(lines[:num_train], input_shape, num_classes, True)
             val_dataset = Bbox3dDatasets(lines[num_train:], input_shape, num_classes, False)
-            gen = DataLoader(train_dataset, batch_size=Batch_size, num_workers=8, pin_memory=True,
+            gen = DataLoader(train_dataset, batch_size=Batch_size, num_workers=args.num_workers, pin_memory=False,
                                     drop_last=True, collate_fn=bbox3d_dataset_collate)
-            gen_val = DataLoader(val_dataset, batch_size=Batch_size, num_workers=8,pin_memory=True,
+            gen_val = DataLoader(val_dataset, batch_size=Batch_size, num_workers=args.num_workers, pin_memory=False,
                                     drop_last=True, collate_fn=bbox3d_dataset_collate)
 
             epoch_size = num_train//Batch_size
             epoch_size_val = num_val//Batch_size
 
             model.freeze_backbone()
-
+            #
             # # show train samples, and save
             # if not os.path.exists("../batch_samples"):
             #     os.makedirs("../batch_samples")
@@ -479,7 +479,7 @@ if __name__ == "__main__":
             #
             #         # heatmap
             #         plt.subplot(2,2,2)
-            #         hotmaps = batch_hm[num][...,2]
+            #         hotmaps = batch_hm[num][..., 0] # cls_index
             #         print(hotmaps.shape)
             #         heatmap = np.maximum(hotmaps, 0)
             #         heatmap /= np.max(heatmap)
@@ -517,9 +517,9 @@ if __name__ == "__main__":
 
             train_dataset = Bbox3dDatasets(lines[:num_train], input_shape, num_classes, True)
             val_dataset = Bbox3dDatasets(lines[num_train:], input_shape, num_classes, False)
-            gen = DataLoader(train_dataset, batch_size=Batch_size, num_workers=8, pin_memory=True,
+            gen = DataLoader(train_dataset, batch_size=Batch_size, num_workers=args.num_workers, pin_memory=False,
                                     drop_last=True, collate_fn=bbox3d_dataset_collate)
-            gen_val = DataLoader(val_dataset, batch_size=Batch_size, num_workers=8,pin_memory=True, 
+            gen_val = DataLoader(val_dataset, batch_size=Batch_size, num_workers=args.num_workers, pin_memory=False,
                                     drop_last=True, collate_fn=bbox3d_dataset_collate)
 
             epoch_size = num_train//Batch_size
