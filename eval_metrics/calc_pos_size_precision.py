@@ -16,8 +16,8 @@ MATCHED_NUM = 0
 SCENE_NUM = 0
 
 # postion visualization (set once to True only)
-vis_pos = True
-vis_curve = False
+vis_pos = False
+vis_curve = True
 
 det_txt_dir = "../%s/input-3D/detection-results" % mode
 gt_txt_dir = "../%s/input-3D/ground-truth" % mode
@@ -65,7 +65,7 @@ font_label = {'family': 'Times New Roman',
         }
 
 # effective distance for different scenes
-valid_pers = [[120, 25], [120, 25], [60, 15]]
+valid_pers = [[80, 10], [60, 10], [120, 25], [120, 25], [60, 15]]
 
 for i in tqdm(range(len(list_det_txt))):  # img files
     # save a single curve for each scene!
@@ -104,8 +104,13 @@ for i in tqdm(range(len(list_det_txt))):  # img files
     f_gt = open(os.path.join(gt_txt_dir, list_gt_txt[i]), "r")
     list_gts = f_gt.readlines()
 
-    if i > 0 and list_det_txt[i].split("_")[:2] != list_det_txt[i-1].split("_")[:2]:
-        SCENE_NUM += 1
+    if list_det_txt[i].split("_")[0][:7] == "session":
+        if i > 0 and list_det_txt[i].split("_")[:2] != list_det_txt[i-1].split("_")[:2]:
+            SCENE_NUM += 1
+    elif list_det_txt[i].split("_")[0][:4] == "real":
+        if i > 0 and list_det_txt[i].split("_")[:3] != list_det_txt[i-1].split("_")[:3]:
+            SCENE_NUM += 1
+
     pers_r = int(valid_pers[SCENE_NUM][0]) * 1000 / 2
     pers_pr = int(valid_pers[SCENE_NUM][1]) * 1000 / 2
     # if list_det_txt[i].split("_")[0] == "session0":
@@ -178,61 +183,63 @@ for i in tqdm(range(len(list_det_txt))):  # img files
                 all_s_loc_error.append(abs(cx_dt/1000-cx_gt/1000)+abs(cy_dt/1000-cy_gt/1000)+abs(cz_dt/1000-cz_gt/1000))
                 all_s_size_error.append(abs(l_dt-l_gt)+abs(w_dt-w_gt)+abs(h_dt-h_gt))
 
-    if vis_curve and i > 0 and list_det_txt[i].split("_")[:2] != list_det_txt[i-1].split("_")[:2]:
-        if SCENE_NUM == 1:
-            plt.yticks(np.arange(-0.1,1.6,0.3))
-            plt.ylim(-0.1,1.6)
-        if SCENE_NUM == 2:
-            plt.yticks(np.arange(-0.5,3.5,0.5))
-            plt.ylim(-0.5,3.5)
-            
-        xc_plot = plt.plot(sorted(s_gt_yc), sorted(s_xc_error), color="green", linewidth=2, label="X error")
-        yc_plot = plt.plot(sorted(s_gt_yc), sorted(s_yc_error), color="red", linewidth=2, label="Y error")
-        zc_plot = plt.plot(sorted(s_gt_yc), sorted(s_zc_error), color="blue", linewidth=2, label="Z error")
-        loc_plot = plt.plot(sorted(s_gt_yc), sorted(s_loc_error), color="orange", linewidth=2, label="total error")
+    if vis_curve and i > 0:
+        if (list_det_txt[i].split("_")[0][:7] == "session" and list_det_txt[i].split("_")[:2] != list_det_txt[i - 1].split("_")[:2]) or (list_det_txt[i].split("_")[0][:4] == "real" and list_det_txt[i].split("_")[:3] != list_det_txt[i - 1].split("_")[:3]):
 
-        # # 尺寸刻度
-        # if SCENE_NUM == 1:
-        #     plt.yticks(np.arange(-0.2,1.2,0.2))
-        # if SCENE_NUM == 2:
-        #     plt.yticks(np.arange(-0.2,1.2,0.2))
-        # l_plot = plt.plot(sorted(s_gt_yc), sorted(s_l_error), color="green", linewidth=2, label="l error")
-        # w_plot = plt.plot(sorted(s_gt_yc), sorted(s_w_error), color="red", linewidth=2, label="w error")
-        # h_plot = plt.plot(sorted(s_gt_yc), sorted(s_h_error), color="blue", linewidth=2, label="h error")
-        # size_plot = plt.plot(sorted(s_gt_yc), sorted(s_size_error), color="orange", linewidth=2, label="total error")
-        
-        if record_txt:
-            f.write("Scene: " + str(i) + "\n")
-            f.write("Avg_l_error_single_scene/m: " + str(np.mean(s_l_error)) + "\n")
-            f.write("Avg_w_error_single_scene/m: " + str(np.mean(s_w_error))+ "\n")
-            f.write("Avg_h_error_single_scene/m: " + str(np.mean(s_h_error))+ "\n")
-            f.write("Avg_xc_error_single_scene/m: " + str(np.mean(s_xc_error)) + "\n")
-            f.write("Avg_yc_error_single_scene/m: " + str(np.mean(s_yc_error))+ "\n")
-            f.write("Avg_zc_error_single_scene/m: " + str(np.mean(s_zc_error))+ "\n")
-            f.write("Avg_size_error_single_scene/m: " + str(np.mean(s_size_error))+ "\n")
-            f.write("Avg_loc_error_single_scene/m: " + str(np.mean(s_loc_error))+ "\n")
+            # if SCENE_NUM == 1:
+            #     plt.yticks(np.arange(-0.1,1.6,0.3))
+            #     plt.ylim(-0.1,1.6)
+            # if SCENE_NUM == 2:
+            #     plt.yticks(np.arange(-0.5,3.5,0.5))
+            #     plt.ylim(-0.5,3.5)
 
-        plt.legend(loc="best", prop=font_legend)
+            xc_plot = plt.plot(sorted(s_gt_yc), sorted(s_xc_error), color="green", linewidth=2, label="X error")
+            yc_plot = plt.plot(sorted(s_gt_yc), sorted(s_yc_error), color="red", linewidth=2, label="Y error")
+            zc_plot = plt.plot(sorted(s_gt_yc), sorted(s_zc_error), color="blue", linewidth=2, label="Z error")
+            loc_plot = plt.plot(sorted(s_gt_yc), sorted(s_loc_error), color="orange", linewidth=2, label="total error")
 
-        plt.savefig(os.path.join("../%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_loc_curve-%s.eps"%str(MINOVERLAP)), format="eps")
-        # plt.savefig(os.path.join("%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_size_curve-%s.eps"%str(MINOVERLAP)), format="eps")
-        plt.close()
+            # # 尺寸刻度
+            # if SCENE_NUM == 1:
+            #     plt.yticks(np.arange(-0.2,1.2,0.2))
+            # if SCENE_NUM == 2:
+            #     plt.yticks(np.arange(-0.2,1.2,0.2))
+            # l_plot = plt.plot(sorted(s_gt_yc), sorted(s_l_error), color="green", linewidth=2, label="l error")
+            # w_plot = plt.plot(sorted(s_gt_yc), sorted(s_w_error), color="red", linewidth=2, label="w error")
+            # h_plot = plt.plot(sorted(s_gt_yc), sorted(s_h_error), color="blue", linewidth=2, label="h error")
+            # size_plot = plt.plot(sorted(s_gt_yc), sorted(s_size_error), color="orange", linewidth=2, label="total error")
 
-        # clear all variables after figure saved
-        s_xc_error.clear()
-        s_yc_error.clear()
-        s_zc_error.clear()
-        s_loc_error.clear()
-        s_l_error.clear()
-        s_w_error.clear()
-        s_h_error.clear()
-        s_size_error.clear()
-        s_gt_yc.clear()
+            if record_txt:
+                f.write("Scene: " + str(i) + "\n")
+                f.write("Avg_l_error_single_scene/m: " + str(np.mean(s_l_error)) + "\n")
+                f.write("Avg_w_error_single_scene/m: " + str(np.mean(s_w_error))+ "\n")
+                f.write("Avg_h_error_single_scene/m: " + str(np.mean(s_h_error))+ "\n")
+                f.write("Avg_xc_error_single_scene/m: " + str(np.mean(s_xc_error)) + "\n")
+                f.write("Avg_yc_error_single_scene/m: " + str(np.mean(s_yc_error))+ "\n")
+                f.write("Avg_zc_error_single_scene/m: " + str(np.mean(s_zc_error))+ "\n")
+                f.write("Avg_size_error_single_scene/m: " + str(np.mean(s_size_error))+ "\n")
+                f.write("Avg_loc_error_single_scene/m: " + str(np.mean(s_loc_error))+ "\n")
+
+            plt.legend(loc="best", prop=font_legend)
+
+            plt.savefig(os.path.join("../%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_loc_curve-%s.eps"%str(MINOVERLAP)), format="eps")
+            # plt.savefig(os.path.join("%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_size_curve-%s.eps"%str(MINOVERLAP)), format="eps")
+            plt.close()
+
+            # clear all variables after figure saved
+            s_xc_error.clear()
+            s_yc_error.clear()
+            s_zc_error.clear()
+            s_loc_error.clear()
+            s_l_error.clear()
+            s_w_error.clear()
+            s_h_error.clear()
+            s_size_error.clear()
+            s_gt_yc.clear()
 
     if vis_curve and i == len(list_det_txt)-1:
 
-        plt.yticks(np.arange(-0.2,1,0.2))
-        plt.ylim(-0.2, 1.0)
+        # plt.yticks(np.arange(-0.2,1,0.2))
+        # plt.ylim(-0.2, 1.0)
         xc_plot = plt.plot(sorted(s_gt_yc), sorted(s_xc_error), color="green", linewidth=2, label="X error")
         yc_plot = plt.plot(sorted(s_gt_yc), sorted(s_yc_error), color="red", linewidth=2, label="Y error")
         zc_plot = plt.plot(sorted(s_gt_yc), sorted(s_zc_error), color="blue", linewidth=2, label="Z error")

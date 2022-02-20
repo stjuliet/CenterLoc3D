@@ -13,9 +13,9 @@ import numpy as np
 
 from utils.utils import basic_3diou
 
-mode = "test"  # val/test
+mode = "val"  # val/test
 
-MINOVERLAP = 0.5  # default value (defined in the PASCAL VOC2012 challenge)
+MINOVERLAP = 0.7  # default value (defined in the PASCAL VOC2012 challenge)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-na', '--no-animation', help="no animation is shown.", action="store_true")

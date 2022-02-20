@@ -9,13 +9,13 @@ import os
 
 model = Bbox3dPred()
 
-mode = "test"  # val/test datasets
+mode = "val"  # val/test datasets
 
 test_txt_path = "../dataset/DATA2021_%s.txt" % mode
 
 record_result = True
 # draw gt boxes in imgs
-draw_gt = True
+draw_gt = False
 # visualization
 save_test_img = True
 

@@ -2,7 +2,7 @@
 
 ### 1. Create and activate conda environment:
 ```
-conda create -n centerloc3d python=3.6
+conda create -n centerloc3d python=3.6.2
 activate centerloc3d
 ```
 

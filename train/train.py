@@ -250,7 +250,7 @@ def get_arguments_for_train(list_backbones):
     parser.add_argument("-freeze_lr", type=float, default=1e-3, help="learning rate in freeze training step")
     parser.add_argument("-unfreeze_lr", type=float, default=1e-4, help="learning rate in unfreeze training step")
     parser.add_argument("-freeze_epoch", type=int, default=60, help="freeze_epoch in freeze training step")
-    parser.add_argument("-unfreeze_epoch", type=int, default=120, help="unfreeze_epoch in unfreeze training step")
+    parser.add_argument("-unfreeze_epoch", type=int, default=100, help="unfreeze_epoch in unfreeze training step")
     parser.add_argument("-freeze_batch_size", type=int, default=16, help="batch size in training step")
     parser.add_argument("-unfreeze_batch_size", type=int, default=8, help="batch size in training step")
     parser.add_argument("-early_stopping_patience", type=int, default=7, help="early stopping patience")

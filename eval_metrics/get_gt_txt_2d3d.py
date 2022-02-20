@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 from tqdm import tqdm
 from utils.utils import *
 
-mode = "test"  # val/test
+mode = "val"  # val/test
 
 
 def get_classes(classes_path):
