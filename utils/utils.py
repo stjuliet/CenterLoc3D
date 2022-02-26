@@ -405,6 +405,13 @@ def read_calib_params(xml_path, width, height):
     return calib_matrix
 
 
+def read_calib_matrix(xml_path):
+    xml_f = cv.FileStorage(xml_path, cv.FileStorage_READ)
+    calib_matrix = np.array(xml_f.getNode("calib_matrix").mat())
+    xml_f.release()
+    return calib_matrix
+
+
 def RDUVtoXYZ(CalibTMatrix, u, v, z):
     """
     func: img ---> world, z (need to specify)
@@ -649,3 +656,11 @@ def gaussian_radius(det_size, min_overlap=0.7):
     r3 = (b3 + sq3) / 2
     return min(r1, r2, r3)
 # -----------------------------gaussian-----------------------------------------------------#
+
+if __name__ == '__main__':
+    xml_path = "../voc_format/DATA2022/Calib/000000_calib.xml"
+    matrix = read_calib_matrix(xml_path)
+
+    print(matrix)
+
+

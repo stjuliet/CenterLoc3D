@@ -1,0 +1,10 @@
+Car
+Truck
+Van
+Bus
+Pedestrian
+Cyclist
+Tricyclist
+Motorcyclist
+Barrowlist
+Trafficcone

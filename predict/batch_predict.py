@@ -9,7 +9,7 @@ import os
 
 model = Bbox3dPred()
 
-mode = "val"  # val/test datasets
+mode = "test"  # val/test datasets
 
 test_txt_path = "../dataset/DATA2021_%s.txt" % mode
 
@@ -17,7 +17,7 @@ record_result = True
 # draw gt boxes in imgs
 draw_gt = False
 # visualization
-save_test_img = True
+save_test_img = False
 
 total_proc_time = 0
 with open(test_txt_path, "r") as fread:

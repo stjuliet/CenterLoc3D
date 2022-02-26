@@ -12,7 +12,7 @@ import numpy as np
 
 from utils.utils import basic_diou, basic_ciou
 
-mode = "val"  # val/test
+mode = "test"  # val/test
 
 MINOVERLAP = 0.7  # default value (defined in the PASCAL VOC2012 challenge)
 

@@ -86,7 +86,7 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
             center_off_loss = reg_l1_loss(pred_center, batch_center_regs, batch_center_masks, index = 2)
             vertex_loss = 0.1*reg_l1_loss(pred_vertex, batch_vertex_regs, batch_center_masks, index = 16)
             size_loss = 0.1*reg_l1_loss(pred_size, batch_size_regs, batch_center_masks, index = 3)
-            reproj_loss = 0.1*reproject_l1_loss(pred_vertex, batch_calib_matrixs, pred_size, batch_center_masks, batch_raw_box_base_points, 16, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
+            # reproj_loss = 0.1*reproject_l1_loss(pred_vertex, batch_calib_matrixs, pred_size, batch_center_masks, batch_raw_box_base_points, 16, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
 
             if iou_type:
                 iou_loss = reg_iou_loss(iou_type, pred_vertex, batch_vertex_regs, batch_center_masks, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
@@ -94,17 +94,17 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
                     iou_loss = torch.log(iou_loss)
                 else:
                     pass
-                loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss + iou_loss
+                loss = cls_loss + center_off_loss + vertex_loss + size_loss + iou_loss
             else:
                 iou_loss = 0.0
-                loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss
+                loss = cls_loss + center_off_loss + vertex_loss + size_loss
 
             total_train_loss += loss.item()
             total_cls_loss += cls_loss.item()
             total_center_off_loss += center_off_loss.item()
             total_vertex_loss += vertex_loss.item()
             total_size_loss += size_loss.item()
-            total_reproj_loss += reproj_loss.item()
+            # total_reproj_loss += reproj_loss.item()
 
             if iou_type:
                 total_iou_loss += iou_loss.item()
@@ -121,8 +121,8 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
                                 'center_loss'           : total_center_off_loss / (iteration + 1),
                                 'vertex_loss'           : total_vertex_loss / (iteration + 1),
                                 'size_loss'             : total_size_loss / (iteration + 1),
-                                'reproj_loss'           : total_reproj_loss / (iteration + 1),
-                                '%s_loss' % iou_type    : total_iou_loss / (iteration + 1),
+                                # 'reproj_loss'           : total_reproj_loss / (iteration + 1),
+                                '%s_iou_loss' % iou_type    : total_iou_loss / (iteration + 1),
                                 'lr'                    : get_lr(optimizer)})
             pbar.update(1)
 
@@ -146,7 +146,7 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
                 center_off_loss = reg_l1_loss(pred_center, batch_center_regs, batch_center_masks, index = 2)
                 vertex_loss = 0.1*reg_l1_loss(pred_vertex, batch_vertex_regs, batch_center_masks, index = 16)
                 size_loss = 0.1*reg_l1_loss(pred_size, batch_size_regs, batch_center_masks, index = 3)
-                reproj_loss = 0.1*reproject_l1_loss(pred_vertex, batch_calib_matrixs, pred_size, batch_center_masks, batch_raw_box_base_points, 16, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
+                # reproj_loss = 0.1*reproject_l1_loss(pred_vertex, batch_calib_matrixs, pred_size, batch_center_masks, batch_raw_box_base_points, 16, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
 
                 if iou_type:
                     iou_loss = reg_iou_loss(iou_type, pred_vertex, batch_vertex_regs, batch_center_masks, batch_box_perspectives, output_shape, input_shape, raw_img_hs, raw_img_ws)
@@ -154,10 +154,10 @@ def fit_one_epoch(net, backbone, optimizer, epoch, epoch_size, epoch_size_val, g
                         iou_loss = torch.log(iou_loss)
                     else:
                         pass
-                    loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss + iou_loss
+                    loss = cls_loss + center_off_loss + vertex_loss + size_loss + iou_loss
                 else:
                     iou_loss = 0.0
-                    loss = cls_loss + center_off_loss + vertex_loss + size_loss + reproj_loss
+                    loss = cls_loss + center_off_loss + vertex_loss + size_loss
 
                 val_loss += loss.item()
 
@@ -361,6 +361,9 @@ if __name__ == "__main__":
     # ------------------------model-----------------------------------------------------
 
     # ------------------------hyper parameters-----------------------------------------------------
+    # iou loss type
+    args.iou_loss_type = None
+
     # batch_size
     if batch_size_list:
         args.freeze_batch_size = batch_size_list[0]
@@ -410,9 +413,9 @@ if __name__ == "__main__":
 
             train_dataset = Bbox3dDatasets(lines[:num_train], input_shape, num_classes, True)
             val_dataset = Bbox3dDatasets(lines[num_train:], input_shape, num_classes, False)
-            gen = DataLoader(train_dataset, batch_size=Batch_size, num_workers=args.num_workers, pin_memory=False,
+            gen = DataLoader(train_dataset, batch_size=Batch_size, num_workers=args.num_workers, pin_memory=True,
                                     drop_last=True, collate_fn=bbox3d_dataset_collate)
-            gen_val = DataLoader(val_dataset, batch_size=Batch_size, num_workers=args.num_workers, pin_memory=False,
+            gen_val = DataLoader(val_dataset, batch_size=Batch_size, num_workers=args.num_workers, pin_memory=True,
                                     drop_last=True, collate_fn=bbox3d_dataset_collate)
 
             epoch_size = num_train//Batch_size
@@ -517,9 +520,9 @@ if __name__ == "__main__":
 
             train_dataset = Bbox3dDatasets(lines[:num_train], input_shape, num_classes, True)
             val_dataset = Bbox3dDatasets(lines[num_train:], input_shape, num_classes, False)
-            gen = DataLoader(train_dataset, batch_size=Batch_size, num_workers=args.num_workers, pin_memory=False,
+            gen = DataLoader(train_dataset, batch_size=Batch_size, num_workers=args.num_workers, pin_memory=True,
                                     drop_last=True, collate_fn=bbox3d_dataset_collate)
-            gen_val = DataLoader(val_dataset, batch_size=Batch_size, num_workers=args.num_workers, pin_memory=False,
+            gen_val = DataLoader(val_dataset, batch_size=Batch_size, num_workers=args.num_workers, pin_memory=True,
                                     drop_last=True, collate_fn=bbox3d_dataset_collate)
 
             epoch_size = num_train//Batch_size

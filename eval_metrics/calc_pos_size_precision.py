@@ -193,20 +193,20 @@ for i in tqdm(range(len(list_det_txt))):  # img files
             #     plt.yticks(np.arange(-0.5,3.5,0.5))
             #     plt.ylim(-0.5,3.5)
 
-            xc_plot = plt.plot(sorted(s_gt_yc), sorted(s_xc_error), color="green", linewidth=2, label="X error")
-            yc_plot = plt.plot(sorted(s_gt_yc), sorted(s_yc_error), color="red", linewidth=2, label="Y error")
-            zc_plot = plt.plot(sorted(s_gt_yc), sorted(s_zc_error), color="blue", linewidth=2, label="Z error")
-            loc_plot = plt.plot(sorted(s_gt_yc), sorted(s_loc_error), color="orange", linewidth=2, label="total error")
+            # xc_plot = plt.plot(sorted(s_gt_yc), sorted(s_xc_error), color="green", linewidth=2, label="X error")
+            # yc_plot = plt.plot(sorted(s_gt_yc), sorted(s_yc_error), color="red", linewidth=2, label="Y error")
+            # zc_plot = plt.plot(sorted(s_gt_yc), sorted(s_zc_error), color="blue", linewidth=2, label="Z error")
+            # loc_plot = plt.plot(sorted(s_gt_yc), sorted(s_loc_error), color="orange", linewidth=2, label="total error")
 
             # # 尺寸刻度
             # if SCENE_NUM == 1:
             #     plt.yticks(np.arange(-0.2,1.2,0.2))
             # if SCENE_NUM == 2:
             #     plt.yticks(np.arange(-0.2,1.2,0.2))
-            # l_plot = plt.plot(sorted(s_gt_yc), sorted(s_l_error), color="green", linewidth=2, label="l error")
-            # w_plot = plt.plot(sorted(s_gt_yc), sorted(s_w_error), color="red", linewidth=2, label="w error")
-            # h_plot = plt.plot(sorted(s_gt_yc), sorted(s_h_error), color="blue", linewidth=2, label="h error")
-            # size_plot = plt.plot(sorted(s_gt_yc), sorted(s_size_error), color="orange", linewidth=2, label="total error")
+            l_plot = plt.plot(sorted(s_gt_yc), sorted(s_l_error), color="green", linewidth=2, label="l error")
+            w_plot = plt.plot(sorted(s_gt_yc), sorted(s_w_error), color="red", linewidth=2, label="w error")
+            h_plot = plt.plot(sorted(s_gt_yc), sorted(s_h_error), color="blue", linewidth=2, label="h error")
+            size_plot = plt.plot(sorted(s_gt_yc), sorted(s_size_error), color="orange", linewidth=2, label="total error")
 
             if record_txt:
                 f.write("Scene: " + str(i) + "\n")
@@ -221,8 +221,8 @@ for i in tqdm(range(len(list_det_txt))):  # img files
 
             plt.legend(loc="best", prop=font_legend)
 
-            plt.savefig(os.path.join("../%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_loc_curve-%s.eps"%str(MINOVERLAP)), format="eps")
-            # plt.savefig(os.path.join("%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_size_curve-%s.eps"%str(MINOVERLAP)), format="eps")
+            # plt.savefig(os.path.join("../%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_loc_curve-%s.eps"%str(MINOVERLAP)), format="eps")
+            plt.savefig(os.path.join("../%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_size_curve-%s.eps"%str(MINOVERLAP)), format="eps")
             plt.close()
 
             # clear all variables after figure saved
@@ -240,16 +240,16 @@ for i in tqdm(range(len(list_det_txt))):  # img files
 
         # plt.yticks(np.arange(-0.2,1,0.2))
         # plt.ylim(-0.2, 1.0)
-        xc_plot = plt.plot(sorted(s_gt_yc), sorted(s_xc_error), color="green", linewidth=2, label="X error")
-        yc_plot = plt.plot(sorted(s_gt_yc), sorted(s_yc_error), color="red", linewidth=2, label="Y error")
-        zc_plot = plt.plot(sorted(s_gt_yc), sorted(s_zc_error), color="blue", linewidth=2, label="Z error")
-        loc_plot = plt.plot(sorted(s_gt_yc), sorted(s_loc_error), color="orange", linewidth=2, label="total error")
+        # xc_plot = plt.plot(sorted(s_gt_yc), sorted(s_xc_error), color="green", linewidth=2, label="X error")
+        # yc_plot = plt.plot(sorted(s_gt_yc), sorted(s_yc_error), color="red", linewidth=2, label="Y error")
+        # zc_plot = plt.plot(sorted(s_gt_yc), sorted(s_zc_error), color="blue", linewidth=2, label="Z error")
+        # loc_plot = plt.plot(sorted(s_gt_yc), sorted(s_loc_error), color="orange", linewidth=2, label="total error")
 
         # plt.yticks(np.arange(-0.2,1.2,0.2))
-        # l_plot = plt.plot(sorted(s_gt_yc), sorted(s_l_error), color="green", linewidth=2, label="l error")
-        # w_plot = plt.plot(sorted(s_gt_yc), sorted(s_w_error), color="red", linewidth=2, label="w error")
-        # h_plot = plt.plot(sorted(s_gt_yc), sorted(s_h_error), color="blue", linewidth=2, label="h error")
-        # size_plot = plt.plot(sorted(s_gt_yc), sorted(s_size_error), color="orange", linewidth=2, label="total error")
+        l_plot = plt.plot(sorted(s_gt_yc), sorted(s_l_error), color="green", linewidth=2, label="l error")
+        w_plot = plt.plot(sorted(s_gt_yc), sorted(s_w_error), color="red", linewidth=2, label="w error")
+        h_plot = plt.plot(sorted(s_gt_yc), sorted(s_h_error), color="blue", linewidth=2, label="h error")
+        size_plot = plt.plot(sorted(s_gt_yc), sorted(s_size_error), color="orange", linewidth=2, label="total error")
         if record_txt:
             f.write("Scene: " + str(i) + "\n")
             f.write("Avg_l_error_single_scene/m: " + str(np.mean(s_l_error)) + "\n")
@@ -263,8 +263,8 @@ for i in tqdm(range(len(list_det_txt))):  # img files
 
         plt.legend(loc="best", prop=font_legend)
 
-        plt.savefig(os.path.join("../%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_loc_curve-%s.eps"%str(MINOVERLAP)), format="eps")
-        # plt.savefig(os.path.join("%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_size_curve-%s.eps"%str(MINOVERLAP)), format="eps")
+        # plt.savefig(os.path.join("../%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_loc_curve-%s.eps"%str(MINOVERLAP)), format="eps")
+        plt.savefig(os.path.join("../%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_size_curve-%s.eps"%str(MINOVERLAP)), format="eps")
         plt.close()
     
     if vis_curve:

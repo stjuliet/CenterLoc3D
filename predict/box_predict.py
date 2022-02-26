@@ -25,7 +25,7 @@ def preprocess_image(image):
 # model_path、classes_path和backbone
 class Bbox3dPred(object):
     _defaults = {
-        "model_path"        : '../logs/resnet50-Epoch99-ciou-Total_train_Loss1.5854-Val_Loss2.2824.pth',
+        "model_path"        : '../logs/resnet50-Epoch87-None-Total_train_Loss0.1741-Val_Loss0.3550.pth',
         "classes_path"      : '../model_data/classes.txt',
         "backbone"          : "resnet50",
         "image_size"        : [512,512,3],
@@ -224,19 +224,37 @@ class Bbox3dPred(object):
             # ----------------------------------save specific class heatmap-----------------------------------#
             # # save heatmap
             # # heatmap of cls-0
-            hotmaps = output_hm[0].cpu().numpy().transpose(1, 2, 0)[..., 0]
-            # print(hotmaps.shape)
+            # hotmaps = output_hm[0].cpu().numpy().transpose(1, 2, 0)[..., 0]
+            # # print(hotmaps.shape)
+            #
+            # import matplotlib.pyplot as plt
+            #
+            # heatmap = np.maximum(hotmaps, 0)
+            # heatmap /= np.max(heatmap)
+            # # plt.matshow(heatmap)
+            # # plt.show()
+            #
+            # heatmap = cv.resize(heatmap, (self.image_size[0], self.image_size[1]))
+            # heatmap = np.uint8(255 * heatmap)
+            # heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
 
-            import matplotlib.pyplot as plt
+            # -----------------------------------save all class heatmap (fusion)------------------------------#
+            final_heatmap = np.zeros((self.image_size[0], self.image_size[1], 3), dtype=np.uint8)
+            for i in range(self.num_classes):
+                hotmap = output_hm[0].cpu().numpy().transpose(1, 2, 0)[..., i]  # each class
 
-            heatmap = np.maximum(hotmaps, 0)
-            heatmap /= np.max(heatmap)
-            # plt.matshow(heatmap)
-            # plt.show()
+                heatmap = np.maximum(hotmap, 0)
+                heatmap /= np.max(heatmap)
 
-            heatmap = cv.resize(heatmap, (self.image_size[0], self.image_size[1]))
-            heatmap = np.uint8(255 * heatmap)
-            heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
+                heatmap = cv.resize(heatmap, (self.image_size[0], self.image_size[1]))
+                heatmap = np.uint8(255 * heatmap)
+                heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
+
+                heatmap = heatmap / self.num_classes
+                heatmap = heatmap.astype(np.uint8)
+
+                final_heatmap += heatmap
+            heatmap = final_heatmap
 
         # font = ImageFont.truetype(font='model_data/simhei.ttf',size=np.floor(3e-2 * np.shape(image)[1] + 0.5).astype('int32')//2)
         font = ImageFont.truetype(font="../model_data/Times New Roman.ttf", size=28)
@@ -360,12 +378,12 @@ class Bbox3dPred(object):
                     draw.line([vertex[6], vertex[7], vertex[14], vertex[15]], fill=(0, 255, 0), width=2)
 
                     # draw vehicle size values
-                    draw.text([(vertex[0] + vertex[6]) // 2-25, (vertex[1] + vertex[7]) // 2-25], "{:.2f}m".format(l),
-                              fill=(255, 0, 0), font=font)
-                    draw.text([(vertex[0] + vertex[2]) // 2-25, (vertex[1] + vertex[3]) // 2], "{:.2f}m".format(w),
-                              fill=(255, 0, 0), font=font)
-                    draw.text([(vertex[2] + vertex[10]) // 2, (vertex[3] + vertex[11]) // 2-20], "{:.2f}m".format(h),
-                              fill=(255, 0, 0), font=font)
+                    # draw.text([(vertex[0] + vertex[6]) // 2-25, (vertex[1] + vertex[7]) // 2-25], "{:.2f}m".format(l),
+                    #           fill=(255, 0, 0), font=font)
+                    # draw.text([(vertex[0] + vertex[2]) // 2-25, (vertex[1] + vertex[3]) // 2], "{:.2f}m".format(w),
+                    #           fill=(255, 0, 0), font=font)
+                    # draw.text([(vertex[2] + vertex[10]) // 2, (vertex[3] + vertex[11]) // 2-20], "{:.2f}m".format(h),
+                    #           fill=(255, 0, 0), font=font)
 
                     # save record
                     if is_record_result:

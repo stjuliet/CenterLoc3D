@@ -79,18 +79,18 @@ for dt_index, single_dataset_path_list in tqdm(enumerate(dataset_path_list)):
         if file_name.endswith(".xml"):
             xml_raw_path = os.path.join(single_dataset_path_list, file_name)
             if single_dataset_path_list.split("/")[-1] == "real_scene_cam0" or single_dataset_path_list.split("/")[-1] == "real_scene_cam1":
-                if file_name[:-4] not in declude_xml_list_without_bmps:
-                    # raw xml filename element revise
-                    raw_xml_tree = ET.parse(xml_raw_path)
-                    raw_root = raw_xml_tree.getroot()
-                    raw_filename = raw_xml_tree.find("filename").text
-                    new_base_filename_dir = raw_filename.replace("bg", single_dataset_path_list.split("/")[-1])
-                    raw_xml_tree.find("filename").text = new_base_filename_dir
-                    # new filename revise
-                    xml_new_path = os.path.join(voc_trainval_anno_dir, new_base_filename_dir.split("/")[-1][:-4] + ".xml")
+                # if file_name[:-4] not in declude_xml_list_without_bmps:
+                # raw xml filename element revise
+                raw_xml_tree = ET.parse(xml_raw_path)
+                raw_root = raw_xml_tree.getroot()
+                raw_filename = raw_xml_tree.find("filename").text
+                new_base_filename_dir = raw_filename.replace("bg", single_dataset_path_list.split("/")[-1])
+                raw_xml_tree.find("filename").text = new_base_filename_dir
+                # new filename revise
+                xml_new_path = os.path.join(voc_trainval_anno_dir, new_base_filename_dir.split("/")[-1][:-4] + ".xml")
 
-                    with open(xml_new_path, "w") as xml:
-                        raw_xml_tree.write(xml_new_path, encoding="utf-8", xml_declaration=True)
+                with open(xml_new_path, "w") as xml:
+                    raw_xml_tree.write(xml_new_path, encoding="utf-8", xml_declaration=True)
             else:
                 xml_new_path = os.path.join(voc_trainval_anno_dir, file_name)
 
@@ -102,8 +102,8 @@ for dt_index, single_dataset_path_list in tqdm(enumerate(dataset_path_list)):
                 img_raw_path = os.path.join(single_dataset_path_list, file_name[:-4] + img_type)
                 if os.path.exists(img_raw_path):
                     if single_dataset_path_list.split("/")[-1] == "real_scene_cam0" or single_dataset_path_list.split("/")[-1] == "real_scene_cam1":
-                        if file_name[:-4] not in declude_xml_list_without_bmps:
-                            img_new_path = os.path.join(voc_trainval_img_dir, new_base_filename_dir.split("/")[-1][:-4] + img_type)
+                        # if file_name[:-4] not in declude_xml_list_without_bmps:
+                        img_new_path = os.path.join(voc_trainval_img_dir, new_base_filename_dir.split("/")[-1][:-4] + img_type)
                     else:
                         img_new_path = os.path.join(voc_trainval_img_dir, file_name[:-4] + img_type)
                     # copy trainval img

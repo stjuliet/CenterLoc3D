@@ -13,7 +13,7 @@ import numpy as np
 
 from utils.utils import basic_3diou
 
-mode = "val"  # val/test
+mode = "test"  # val/test
 
 MINOVERLAP = 0.7  # default value (defined in the PASCAL VOC2012 challenge)
 
