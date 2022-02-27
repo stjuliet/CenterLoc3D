@@ -150,26 +150,26 @@ class FPN(nn.Module):
         P7 = self.P7_conv(P7_x)
 
         # ---------------------feature fusion of different scales----------------------#
-        # ConvTranspose2d to lift feature map size to the same
-        P3 = self.P3_convtrans(P3)
-        P4 = self.P4_convtrans(P4)
-        P5 = self.P5_convtrans(P5)
-        P6 = self.P6_convtrans(P6)
-        P7 = self.P7_convtrans(P7)
-
-        # [64, 128, 128]
-        # weights
-        P_merge = 0.5 * P3 + 0.2 * P4 + 0.1 * P5 + 0.1 * P6 + 0.1 * P7
-        # P_merge = 0.5 * P3 + 0.3 * P4 + 0.2 * P5
-
-        return P_merge
+        # # ConvTranspose2d to lift feature map size to the same
+        # P3 = self.P3_convtrans(P3)
+        # P4 = self.P4_convtrans(P4)
+        # P5 = self.P5_convtrans(P5)
+        # P6 = self.P6_convtrans(P6)
+        # P7 = self.P7_convtrans(P7)
+        #
+        # # [64, 128, 128]
+        # # weights
+        # P_merge = 0.5 * P3 + 0.2 * P4 + 0.1 * P5 + 0.1 * P6 + 0.1 * P7
+        # # P_merge = 0.5 * P3 + 0.3 * P4 + 0.2 * P5
+        #
+        # return P_merge
         # ---------------------feature fusion of different scales----------------------#
 
         # remove feature fusion of different scales
         # P3: ConvTranspose2d, conv, 64*64*256 -> 128*128*64
-        # P3_out = self.P3_convtrans(P3)
+        P3_out = self.P3_convtrans(P3)
 
-        # return P3_out
+        return P3_out
 
 
 class DetectionHead(nn.Module):

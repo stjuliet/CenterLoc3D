@@ -25,7 +25,7 @@ def preprocess_image(image):
 # model_path、classes_path和backbone
 class Bbox3dPred(object):
     _defaults = {
-        "model_path"        : '../logs/resnet50-Epoch87-None-Total_train_Loss0.1741-Val_Loss0.3550.pth',
+        "model_path"        : '../logs/resnet50-Epoch95-None-Total_train_Loss0.2745-Val_Loss0.4198.pth',
         "classes_path"      : '../model_data/classes.txt',
         "backbone"          : "resnet50",
         "image_size"        : [512,512,3],

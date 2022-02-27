@@ -58,8 +58,8 @@ class Bbox3dDatasets(Dataset):
         dx = (featmap_w-new_image_w)//2
         dy = (featmap_h-new_image_h)//2
 
-        # calib_matrix = read_calib_params(line[1], image_w, image_h)
-        calib_matrix = read_calib_matrix(line[1])
+        calib_matrix = read_calib_params(line[1], image_w, image_h)
+        # calib_matrix = read_calib_matrix(line[1])
 
         box_info = np.array([np.array(list(map(float,box_info.split(',')))) for box_info in line[2:]])  # [len(box_info), 29]
 
