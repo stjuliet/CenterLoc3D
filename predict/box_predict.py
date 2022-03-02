@@ -25,14 +25,14 @@ def preprocess_image(image):
 # model_path、classes_path和backbone
 class Bbox3dPred(object):
     _defaults = {
-        "model_path"        : '../logs/resnet50-Epoch95-None-Total_train_Loss0.2745-Val_Loss0.4198.pth',
+        "model_path"        : '../0all-module-logs/resnet50-Epoch99-ciou-Total_train_Loss1.5854-Val_Loss2.2824.pth',
         "classes_path"      : '../model_data/classes.txt',
         "backbone"          : "resnet50",
-        "image_size"        : [512,512,3],
+        "image_size"        : [512, 512, 3],
         "confidence"        : 0.3,
         # backbone: resnet50 - True
         # backbone: hourglass - False
-        "nms"               : True,
+        "nms"               : False,
         "nms_threhold"      : 0.5,
         "cuda"              : True,
         "letterbox_image"   : True   # suggested True
@@ -181,18 +181,21 @@ class Bbox3dPred(object):
             try:
                 if self.nms:
                     for i in range(len(outputs)):
-                        x1, y1, x7, y7, cls_id = outputs[i][4], outputs[i][5], outputs[i][16], outputs[i][17], outputs[i][22]
-                        # vehicle view
-                        if x7 < x1:   # 1、right  x7<x1
-                            empty_box.append([x7, y7, x1, y1, cls_id])
-                        else:  # 2、left   x7>=x1
-                            empty_box.append([x1, y7, x7, y1, cls_id])
+                        x_min = np.min(outputs[i][:, 4:18:2], axis=1, keepdims=True)
+                        x_max = np.max(outputs[i][:, 4:18:2], axis=1, keepdims=True)
+                        y_min = np.min(outputs[i][:, 5:18:2], axis=1, keepdims=True)
+                        y_max = np.max(outputs[i][:, 5:18:2], axis=1, keepdims=True)
+                        cls_id = np.expand_dims(outputs[i][:, 22], 1)
+                        bbox_det = np.concatenate([x_min, y_min, x_max, y_max, cls_id], 1)
+                        empty_box.append(bbox_det)
                     np_det_results = np.array(empty_box, dtype=np.float32)
-                    outputs = np.array(nms(np_det_results, self.nms_threhold))
+                    best_dets, best_det_indices = np.array(nms(np_det_results, self.nms_threhold))
+                    output = outputs[0][best_det_indices]
+                else:
+                    output = outputs[0]
             except:
-                pass
+                output = outputs[0]
             
-            output = outputs[0]
             if len(output) <= 0:
                 return image
             
@@ -378,12 +381,12 @@ class Bbox3dPred(object):
                     draw.line([vertex[6], vertex[7], vertex[14], vertex[15]], fill=(0, 255, 0), width=2)
 
                     # draw vehicle size values
-                    # draw.text([(vertex[0] + vertex[6]) // 2-25, (vertex[1] + vertex[7]) // 2-25], "{:.2f}m".format(l),
-                    #           fill=(255, 0, 0), font=font)
-                    # draw.text([(vertex[0] + vertex[2]) // 2-25, (vertex[1] + vertex[3]) // 2], "{:.2f}m".format(w),
-                    #           fill=(255, 0, 0), font=font)
-                    # draw.text([(vertex[2] + vertex[10]) // 2, (vertex[3] + vertex[11]) // 2-20], "{:.2f}m".format(h),
-                    #           fill=(255, 0, 0), font=font)
+                    draw.text([(vertex[0] + vertex[6]) // 2-25, (vertex[1] + vertex[7]) // 2-25], "{:.2f}m".format(l),
+                              fill=(255, 0, 0), font=font)
+                    draw.text([(vertex[0] + vertex[2]) // 2-25, (vertex[1] + vertex[3]) // 2], "{:.2f}m".format(w),
+                              fill=(255, 0, 0), font=font)
+                    draw.text([(vertex[2] + vertex[10]) // 2, (vertex[3] + vertex[11]) // 2-20], "{:.2f}m".format(h),
+                              fill=(255, 0, 0), font=font)
 
                     # save record
                     if is_record_result:

@@ -9,7 +9,7 @@ import os
 
 model = Bbox3dPred()
 
-mode = "val"  # val/test datasets
+mode = "test"  # val/test datasets
 
 test_txt_path = "../dataset/DATA2021_%s.txt" % mode
 

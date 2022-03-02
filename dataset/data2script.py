@@ -17,6 +17,10 @@ def convert_annotation(year, image_id, list_file):
     # calib xml path (only reserve file name)
     calib_xml_path = str(tree.find('calibfile').text).split("/")[-1]
 
+    # img, calib file only needs to be written once for a single img
+    single_line = '../DATAdevkit/%s/JPEGImages/%s.%s' % (year, image_id, img_format) + \
+                  " " + os.path.join('../DATAdevkit/%s/Calib' % (year), calib_xml_path)
+
     # box
     for idx, obj in enumerate(root.iter('object')):
         # 1、2D box [left, top, width, height] (int)
@@ -48,15 +52,11 @@ def convert_annotation(year, image_id, list_file):
         # line
         # file_path (outer write)
         # calib_xml_path left,top,width,height,cls_id,cx1,cy1,u0,v0,...,u7,v7,v_l,v_w,v_h,pers,bpx1,bpx2  (29 items)
-        if idx == 0:  # img, calib file only needs to be written once for a single img
-            if image_set == "test":
-                year = "TESTDATA2021"
-            list_file.write('../DATAdevkit/%s/JPEGImages/%s.%s' % (year, image_id, img_format))  # write absolute path of imgs to txt
-            list_file.write(" " + os.path.join('../DATAdevkit/%s/Calib'%(year), calib_xml_path))
-        single_line = " " + ",".join([box for box in bbox2d_data]) + "," + str(veh_cls_id) + "," + \
+
+        single_line += " " + ",".join([box for box in bbox2d_data]) + "," + str(veh_cls_id) + "," + \
                         ",".join([centre for centre in veh_centre_data]) + "," + ",".join([str(vertex) for vertex in veh_vertex_data]) + "," + \
                             ",".join([size for size in veh_size_data]) + "," + str(veh_view_data) + "," + ",".join([base_point for base_point in veh_base_point_data])
-        list_file.write(single_line)
+    list_file.write(single_line + "\n")
 
 
 if __name__ == "__main__":
@@ -68,7 +68,6 @@ if __name__ == "__main__":
             if image_set == "test":
                 year = "TESTDATA2021"
             convert_annotation(year, image_id, list_file)
-            list_file.write('\n')
         list_file.close()
 
     print("finish convert scripts!")

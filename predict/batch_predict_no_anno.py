@@ -17,6 +17,7 @@ dataset_path_list = ["E:/PythonCodes/bbox3d_annotation_tools/session0_center_dat
 IMAGE_TYPES = [".jpg", ".png", ".jpeg"]
 
 record_result = True
+draw_gt = False
 # visualization
 save_test_img = True
 
@@ -38,7 +39,7 @@ for dt_index, single_dataset_path_list in enumerate(dataset_path_list):
                     total_img_num += 1
                     image = Image.open(img_raw_path)
                     image_id = file_name.split(".")[0]
-                    r_image, r_heatmap, proc_time = model.detect_image(image, image_id, record_result, calib_raw_path)
+                    r_image, r_heatmap, proc_time = model.detect_image(image, image_id, draw_gt, record_result, calib_raw_path)
                     total_proc_time += proc_time
                     if save_test_img:
                         r_image.save("../input-2D/images-optional/" + str(img_raw_path.split("\\")[-1]))

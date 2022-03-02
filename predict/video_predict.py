@@ -13,11 +13,12 @@ video_save_path = video_path[:-4] + "_out.mp4"
 calib_path = video_path[:-4] + "_calibParams.xml"
 
 capture = cv.VideoCapture(video_path)
-start_frame = 0
+start_frame = 4085
 capture.set(cv.CAP_PROP_POS_FRAMES, start_frame)
 video_fps = capture.get(cv.CAP_PROP_FPS)
-print(video_fps)
+print("video fps: ", video_fps)
 frame_count = int(capture.get(cv.CAP_PROP_FRAME_COUNT))
+print("total frames: ", frame_count)
 
 if video_save_path != "":
     fourcc = cv.VideoWriter_fourcc(*'mp4v')
@@ -29,7 +30,7 @@ if not ref:
     raise ValueError("fail to load videos!")
 
 fps = 0.0
-for index in tqdm(range(frame_count-start_frame*8)):
+for index in tqdm(range(frame_count-start_frame)):
     ref, frame = capture.read()
     if not ref:
         break
@@ -42,9 +43,9 @@ for index in tqdm(range(frame_count-start_frame*8)):
     frame = cv.cvtColor(frame, cv.COLOR_RGB2BGR)
     fps = 1. / process_time
     # print("fps=%.2f" % fps)
-    frame = cv.putText(frame, "fps=%.2f" % fps, (0, 40), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    frame = cv.putText(frame, "FPS: %.2f" % fps, (0, 40), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
-    cv.imshow("video", frame)
+    # cv.imshow("video", frame)
     c = cv.waitKey(1) & 0xff
     if video_save_path != "":
         out.write(frame)

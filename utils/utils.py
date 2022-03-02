@@ -34,12 +34,12 @@ def pool_nms(heat, kernel=3):
 
 
 def nms(results, nms_threshold):
-    """ common nms"""
+    """ common nms """
     outputs = []
+    keep = []
     for i in range(len(results)):  # each img
-
         detections = results[i]
-        unique_class = np.unique(detections[:,-1])
+        unique_class = np.unique(detections[:, -1])
 
         best_box = []
         if len(unique_class) == 0:
@@ -47,21 +47,25 @@ def nms(results, nms_threshold):
             continue
 
         for c in unique_class:  # cls
-            cls_mask = detections[:,-1] == c
+            cls_mask = detections[:, -1] == c
 
             detection = detections[cls_mask]
-            scores = detection[:,4]
+            scores = detection[:, 4]
             # descending order
             arg_sort = np.argsort(scores)[::-1]
             detection = detection[arg_sort]
             while np.shape(detection)[0] > 0:
+                i = arg_sort[0]
                 best_box.append(detection[0])
+                keep.append(i)
                 if len(detection) == 1:
                     break
-                ious = nms_diou(best_box[-1], detection[1:])
+                ious = iou(best_box[-1], detection[1:])
                 detection = detection[1:][ious < nms_threshold]  # only keep box with ious < nms_threshold
+                inds = np.where(ious < nms_threshold)[0]
+                arg_sort = arg_sort[inds + 1]
         outputs.append(best_box)
-    return outputs
+    return outputs, keep
 
 
 def iou(b1, b2):
@@ -98,11 +102,11 @@ def nms_diou(bbox_p, bbox_g):
     # gt 2d box area
     area_g = abs(bbox_g[:, 2] - bbox_g[:, 0]) * abs(bbox_g[:, 3] - bbox_g[:, 1])
 
-    center_p = np.array([(bbox_p[0]+bbox_p[2])/2., (bbox_p[1]+bbox_p[3])/2.], dtype=np.float32)
-    center_g = np.array([(bbox_g[:, 0]+bbox_g[:, 2])/2., (bbox_g[:, 1]+bbox_g[:, 3])/2.], dtype=np.float32)
+    center_p = np.array([(bbox_p[0] + bbox_p[2]) / 2., (bbox_p[1] + bbox_p[3]) / 2.], dtype=np.float32)
+    center_g = np.array([(bbox_g[:, 0] + bbox_g[:, 2]) / 2., (bbox_g[:, 1] + bbox_g[:, 3]) / 2.], dtype=np.float32).T
 
     # box center distance
-    box_center_dis = (center_p[0] - center_g[:, 0])**2 + (center_p[1] - center_g[:, 1])**2
+    box_center_dis = (center_p[0] - center_g[:, 0]) ** 2 + (center_p[1] - center_g[:, 1]) ** 2
 
     x_min_inter = np.maximum(bbox_p[0], bbox_g[:, 0])
     y_min_inter = np.maximum(bbox_p[1], bbox_g[:, 1])
@@ -118,11 +122,11 @@ def nms_diou(bbox_p, bbox_g):
     x_max_union = np.maximum(bbox_p[2], bbox_g[:, 2])
     y_max_union = np.maximum(bbox_p[3], bbox_g[:, 3])
 
-    external_dis = (x_max_union - x_min_union)**2 + (y_max_union - y_min_union)**2
+    external_dis = (x_max_union - x_min_union) ** 2 + (y_max_union - y_min_union) ** 2
 
     # iou
     iou = intersection / np.maximum(union, 1e-6)
-    
+
     # diou
     diou = iou - (box_center_dis / np.maximum(external_dis, 1e-6))
 
@@ -221,7 +225,7 @@ def basic_diou(bbox_p, bbox_g):
 
     # iou
     iou = intersection / np.maximum(union, 1e-6)
-    
+
     # diou
     diou = iou - box_center_dis / np.maximum(external_dis, 1e-6)
 
@@ -271,7 +275,7 @@ def basic_ciou(bbox_p, bbox_g):
     # penalty of box ratio
     v = (4 / math.pi**2) * (math.atan(bbox_w_g/bbox_h_g) - math.atan(bbox_w_p/bbox_h_p))**2
     alpha = v / np.maximum((1 - iou + v), 1e-6)
-    
+
     # ciou
     ciou = iou - (box_center_dis / np.maximum(external_dis, 1e-6)) - v*alpha
 
@@ -290,7 +294,7 @@ def basic_cdiou(vertex_p, vertex_g, bbox_p, bbox_g):
     for i in range(len(vertex_p)//2):  # [0, 8)
         dis = math.sqrt((vertex_p[2*i] - vertex_g[2*i])**2 + (vertex_p[2*i+1] - vertex_g[2*i+1])**2)
         v_dis += dis
-    
+
     # pred 2d box area
     area_p = abs(bbox_p[2] - bbox_p[0]) * abs(bbox_p[3] - bbox_p[1])
     # gt 2d box area
@@ -314,7 +318,7 @@ def basic_cdiou(vertex_p, vertex_g, bbox_p, bbox_g):
 
     # iou
     iou = intersection / np.maximum(union, 1e-6)
-    
+
     # ciou
     cdiou = iou - (v_dis / np.maximum(8*external_dis, 1e-6))
 
@@ -402,13 +406,6 @@ def read_calib_params(xml_path, width, height):
     node_h = xml_dir.find('h')
     calib_matrix = calib_param_to_matrix(float(node_f.text), float(node_fi.text), float(node_theta.text),
                                 float(node_h.text), width / 2, height / 2)
-    return calib_matrix
-
-
-def read_calib_matrix(xml_path):
-    xml_f = cv.FileStorage(xml_path, cv.FileStorage_READ)
-    calib_matrix = np.array(xml_f.getNode("calib_matrix").mat())
-    xml_f.release()
     return calib_matrix
 
 
@@ -656,11 +653,3 @@ def gaussian_radius(det_size, min_overlap=0.7):
     r3 = (b3 + sq3) / 2
     return min(r1, r2, r3)
 # -----------------------------gaussian-----------------------------------------------------#
-
-if __name__ == '__main__':
-    xml_path = "../voc_format/DATA2022/Calib/000000_calib.xml"
-    matrix = read_calib_matrix(xml_path)
-
-    print(matrix)
-
-

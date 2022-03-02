@@ -12,7 +12,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 
-from utils.utils import draw_gaussian, gaussian_radius, read_calib_params, read_calib_matrix
+from utils.utils import draw_gaussian, gaussian_radius, read_calib_params
 
 
 class Bbox3dDatasets(Dataset):
@@ -59,7 +59,6 @@ class Bbox3dDatasets(Dataset):
         dy = (featmap_h-new_image_h)//2
 
         calib_matrix = read_calib_params(line[1], image_w, image_h)
-        # calib_matrix = read_calib_matrix(line[1])
 
         box_info = np.array([np.array(list(map(float,box_info.split(',')))) for box_info in line[2:]])  # [len(box_info), 29]
 
