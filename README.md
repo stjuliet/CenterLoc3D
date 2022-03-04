@@ -109,6 +109,10 @@ type score x1 y1 z1 ... x8 y8 z8 lv wv hv cx cy cz
 
 - Step 5. Run ```./eval_metrics/calc_pos_size_precision.py``` to get precision and error of localization and dimension, and top-view visualization of localization and error curves.
 
+### Results
+
+Please refer to [test-results.md](test-results.md).
+
 ## Acknowledgement
 - [xingyizhou-CenterNet](https://github.com/xingyizhou/CenterNet)
 - [bubbliiiing-CenterNet](https://github.com/bubbliiiing/centernet-pytorch)

@@ -6,8 +6,7 @@
 /DATAdevkit/TESTDATA2021/
 /videos/
 
-# ignore all .jpg .xml .txt .zip files
-*.jpg
+# ignore all .zip files
 *.zip
 *.rar
 
@@ -15,15 +14,11 @@
 /val/
 
 /logs/
+/train-logs/
 
 /model_data/*.pth
 /model_data/*.tar
 
-/train-logs/
-
-/voc_format/DATA2022/
 /0all-module-logs/
 /1without-iou-logs/
 /2without-iou-proj-module/
-
-test-results.md
