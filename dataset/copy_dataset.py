@@ -85,6 +85,8 @@ for dt_index, single_dataset_path_list in tqdm(enumerate(dataset_path_list)):
                 raw_root = raw_xml_tree.getroot()
                 raw_filename = raw_xml_tree.find("filename").text
                 new_base_filename_dir = raw_filename.replace("bg", single_dataset_path_list.split("/")[-1])
+                if new_base_filename_dir.endswith(".png"):
+                    new_base_filename_dir = new_base_filename_dir.replace(".png", ".jpg")
                 raw_xml_tree.find("filename").text = new_base_filename_dir
                 # new filename revise
                 xml_new_path = os.path.join(voc_trainval_anno_dir, new_base_filename_dir.split("/")[-1][:-4] + ".xml")
@@ -103,9 +105,9 @@ for dt_index, single_dataset_path_list in tqdm(enumerate(dataset_path_list)):
                 if os.path.exists(img_raw_path):
                     if single_dataset_path_list.split("/")[-1] == "real_scene_cam0" or single_dataset_path_list.split("/")[-1] == "real_scene_cam1":
                         # if file_name[:-4] not in declude_xml_list_without_bmps:
-                        img_new_path = os.path.join(voc_trainval_img_dir, new_base_filename_dir.split("/")[-1][:-4] + img_type)
+                        img_new_path = os.path.join(voc_trainval_img_dir, new_base_filename_dir.split("/")[-1][:-4] + ".jpg")
                     else:
-                        img_new_path = os.path.join(voc_trainval_img_dir, file_name[:-4] + img_type)
+                        img_new_path = os.path.join(voc_trainval_img_dir, file_name[:-4] + ".jpg")
                     # copy trainval img
                     if not os.path.exists(img_new_path):
                         shutil.copy(img_raw_path, img_new_path)
@@ -120,6 +122,8 @@ for dt_index, single_dataset_path_list in tqdm(enumerate(dataset_path_list)):
                 raw_root = raw_xml_tree.getroot()
                 raw_filename = raw_xml_tree.find("filename").text
                 new_base_filename_dir = raw_filename.replace("bg", single_dataset_path_list.split("/")[-1])
+                if new_base_filename_dir.endswith(".png"):
+                    new_base_filename_dir = new_base_filename_dir.replace(".png", ".jpg")
                 raw_xml_tree.find("filename").text = new_base_filename_dir
                 # new filename revise
                 xml_new_path = os.path.join(voc_test_anno_dir, new_base_filename_dir.split("/")[-1][:-4] + ".xml")
@@ -136,9 +140,9 @@ for dt_index, single_dataset_path_list in tqdm(enumerate(dataset_path_list)):
                 img_raw_path = os.path.join(single_dataset_path_list, file_name[:-4] + img_type)
                 if os.path.exists(img_raw_path):
                     if single_dataset_path_list.split("/")[-1] == "real_scene_cam0" or single_dataset_path_list.split("/")[-1] == "real_scene_cam1":
-                        img_new_path = os.path.join(voc_test_img_dir, new_base_filename_dir.split("/")[-1][:-4] + img_type)
+                        img_new_path = os.path.join(voc_test_img_dir, new_base_filename_dir.split("/")[-1][:-4] + ".jpg")
                     else:
-                        img_new_path = os.path.join(voc_test_img_dir, file_name[:-4] + img_type)
+                        img_new_path = os.path.join(voc_test_img_dir, file_name[:-4] + ".jpg")
                     # copy test img
                     if not os.path.exists(img_new_path):
                         shutil.copy(img_raw_path, img_new_path)

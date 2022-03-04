@@ -1,6 +1,13 @@
-## SVLD-3D Dataset
+# SVLD-3D Dataset
 
-- Directory Structure
+## Introduction
+Surveillance Vehicle Localization Dataset - 3D vehicle detection and localization for monocular roadside cameras.
+- 5 scenes with 3 typical  vehicle types.
+- 14592 train/val images, 2237 test images.
+- Examples:
+![image](imgs/example.png)
+
+## Directory Structure
 ```
 SVLD-3D                             # root directory
     ├── DATA2021                    # trainval set
@@ -27,7 +34,7 @@ SVLD-3D                             # root directory
     ├── README.md                   # instruction
 ```
 
-- Annotation Format
+## Annotation Format
 ```
 <annotation>
 	<filename>absolute path: {image_id}.jpg/png</filename>
@@ -54,7 +61,7 @@ SVLD-3D                             # root directory
 </annotation>
 ```
 
-- Vehicle Type
+## Vehicle Type
 
 | Type              | Annotation        |
 | ----------------- | ----------------- |
@@ -62,6 +69,25 @@ SVLD-3D                             # root directory
 | truck             | Truck             |
 | bus               | Bus               |
 
-### Contact
+## Download
+All the images and annotations in SVLD-3D are available at Google Drive.
 
-Email: andy19966212@126.com
+### train/val set:
+
+- [DATA2021: Scene A-C](https://drive.google.com/file/d/1yO9av6qtLxOehT-vRivaX_WX6TT-jIvc/view?usp=sharing)
+- [DATA2021: Scene D](https://drive.google.com/file/d/13i341cnFtNVlRvVBjSAmUGtxEiHt_Fjz/view?usp=sharing)
+- [DATA2021: Scene E](https://drive.google.com/file/d/1Z-lv_NQtBc8EFYJaFapF69H79m2Ce2mO/view?usp=sharing)
+
+### test set:
+
+- [TESTDATA2021: Scene A-E](https://drive.google.com/file/d/10zspX_-gWoQOwzN5Ba-MDQVsV6Omh80A/view?usp=sharing)
+
+## Citation
+```
+@article{tang2022CenterLoc3D,
+  title={CenterLoc3D: Monocular 3D Vehicle Localization Network for Roadside Surveillance Cameras},
+  author={Tang, Xinyao and Song, Huansheng and Wang, Wei and Zhao, Chunhui},
+  journal={arXiv preprint arXiv:********},
+  year={2022}
+}
+```

@@ -14,7 +14,6 @@
 /test/
 /val/
 
-/img/
 /logs/
 
 /model_data/*.pth
@@ -26,3 +25,5 @@
 /0all-module-logs/
 /1without-iou-logs/
 /2without-iou-proj-module/
+
+test-results.md

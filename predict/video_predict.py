@@ -8,12 +8,12 @@ import time
 
 model = Bbox3dPred()
 
-video_path      = "../videos/session0_center.avi"
+video_path      = "../videos/1cam.MOV"
 video_save_path = video_path[:-4] + "_out.mp4"
 calib_path = video_path[:-4] + "_calibParams.xml"
 
 capture = cv.VideoCapture(video_path)
-start_frame = 4085
+start_frame = 4100
 capture.set(cv.CAP_PROP_POS_FRAMES, start_frame)
 video_fps = capture.get(cv.CAP_PROP_FPS)
 print("video fps: ", video_fps)
@@ -30,7 +30,7 @@ if not ref:
     raise ValueError("fail to load videos!")
 
 fps = 0.0
-for index in tqdm(range(frame_count-start_frame)):
+for index in tqdm(range(frame_count-start_frame*2)):
     ref, frame = capture.read()
     if not ref:
         break
@@ -41,9 +41,10 @@ for index in tqdm(range(frame_count-start_frame)):
     frame = np.array(r_image)
     # RGB -> BGR
     frame = cv.cvtColor(frame, cv.COLOR_RGB2BGR)
-    fps = 1. / process_time
-    # print("fps=%.2f" % fps)
-    frame = cv.putText(frame, "FPS: %.2f" % fps, (0, 40), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+    # fps = 1. / process_time
+    # # print("fps=%.2f" % fps)
+    # frame = cv.putText(frame, "FPS: %.2f" % fps, (0, 40), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
     # cv.imshow("video", frame)
     c = cv.waitKey(1) & 0xff
