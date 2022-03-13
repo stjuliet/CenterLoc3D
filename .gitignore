@@ -6,6 +6,8 @@
 /DATAdevkit/TESTDATA2021/
 /videos/
 
+/batch_samples/
+
 # ignore all .zip files
 *.zip
 *.rar
