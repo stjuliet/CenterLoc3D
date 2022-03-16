@@ -3,7 +3,7 @@
 Pytorch implementation of 3D vehicle detection and localization network for roadside surveillance cameras.
 ![image](imgs/network.png)
 
-[Demo Video](https://drive.google.com/file/d/15dLGES205TwV8rbcV1YGJXXhXfRO8nid/view?usp=sharing)
+[Demo Video](https://drive.google.com/file/d/1_0J-kSnE37mxH_XLk0mtOUTsG5HYpmnF/view?usp=sharing)
 
 ***
 ## Environments
