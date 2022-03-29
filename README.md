@@ -5,6 +5,8 @@ Pytorch implementation of 3D vehicle detection and localization network for road
 
 [Demo Video](https://drive.google.com/file/d/1_0J-kSnE37mxH_XLk0mtOUTsG5HYpmnF/view?usp=sharing)
 
+[Arxiv PDF](https://arxiv.org/abs/2203.14550)
+
 ***
 ## Environments
 
@@ -123,7 +125,7 @@ If you find our work helpful to your research, please cite our paper.
 @article{tang2022CenterLoc3D,
   title={CenterLoc3D: Monocular 3D Vehicle Localization Network for Roadside Surveillance Cameras},
   author={Tang, Xinyao and Song, Huansheng and Wang, Wei and Zhao, Chunhui},
-  journal={arXiv preprint arXiv:********},
+  journal={arXiv preprint arXiv:2203.14550},
   year={2022}
 }
 ```
