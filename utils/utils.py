@@ -603,6 +603,20 @@ def correct_vertex_norm2raw(norm_vertex, raw_image_shape):
     return norm_vertex
 
 
+def coord_to_homog(points):
+    # [x,y] -> [x, y, 1]
+    # points: [num_point, [pt_x, pt_y]]
+    return np.hstack((points, np.ones((points.shape[0], 1))))
+
+
+def coord_to_normal(points):
+    # [x, y, z] -> [x/z, y/z]
+    # points: [num_point, [pt_x, pt_y]]
+    points[:, 0] = points[:, 0] / points[:, 2]
+    points[:, 1] = points[:, 1] / points[:, 2]
+    return np.delete(points, 2, axis=1)
+
+
 # -----------------------------gaussian-----------------------------------------------------#
 def draw_gaussian(heatmap, center, radius, k=1):
     diameter = 2 * radius + 1

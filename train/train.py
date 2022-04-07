@@ -422,7 +422,7 @@ if __name__ == "__main__":
             epoch_size_val = num_val//Batch_size
 
             model.freeze_backbone()
-            #
+
             # # show train samples, and save
             # if not os.path.exists("../batch_samples"):
             #     os.makedirs("../batch_samples")

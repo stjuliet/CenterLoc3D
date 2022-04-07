@@ -4,6 +4,7 @@ import cv2 as cv
 import numpy as np
 from random import shuffle
 
+import platform
 from PIL import Image
 from matplotlib.colors import hsv_to_rgb, rgb_to_hsv
 
@@ -12,7 +13,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 
-from utils.utils import draw_gaussian, gaussian_radius, read_calib_params
+from utils.utils import draw_gaussian, gaussian_radius, read_calib_params, coord_to_homog, coord_to_normal
 
 
 class Bbox3dDatasets(Dataset):
@@ -62,6 +63,31 @@ class Bbox3dDatasets(Dataset):
 
         box_info = np.array([np.array(list(map(float,box_info.split(',')))) for box_info in line[2:]])  # [len(box_info), 29]
 
+        if platform.system() == "Linux":
+            if line[1].split("/")[-1].split("_")[0] + line[1].split("/")[-1].split("_")[1] == "session0centre":
+                pers_control_points = np.array([475, 830, 275, 330, 590, 370, 1345, 830]).astype(np.float32).reshape(-1, 2)
+            elif line[1].split("/")[-1].split("_")[0] + line[1].split("/")[-1].split("_")[1] == "session0right":
+                pers_control_points = np.array([285, 775, 630, 215, 1025, 215, 1340, 775]).astype(np.float32).reshape(-1, 2)
+            elif line[1].split("/")[-1].split("_")[0] + line[1].split("/")[-1].split("_")[1] == "session6right":
+                pers_control_points = np.array([200, 760, 1140, 115, 1765, 115, 1660, 760]).astype(np.float32).reshape(-1, 2)
+            elif line[1].split("/")[-1].split("_")[0] == "0cam":
+                pers_control_points = np.array([227, 663, 670, 197, 920, 197, 915, 667]).astype(np.float32).reshape(-1, 2)
+            elif line[1].split("/")[-1].split("_")[0] == "1cam":
+                pers_control_points = np.array([45, 684, 323, 206, 550, 206, 716, 684]).astype(np.float32).reshape(-1, 2)
+        elif platform.system() == "Windows":
+            if line[1].split("\\")[-1].split("_")[0] + line[1].split("\\")[-1].split("_")[1] == "session0centre":
+                pers_control_points = np.array([475, 830, 275, 330, 590, 370, 1345, 830]).astype(np.float32).reshape(-1, 2)
+            elif line[1].split("\\")[-1].split("_")[0] + line[1].split("\\")[-1].split("_")[1] == "session0right":
+                pers_control_points = np.array([285, 775, 630, 215, 1025, 215, 1340, 775]).astype(np.float32).reshape(-1, 2)
+            elif line[1].split("\\")[-1].split("_")[0] + line[1].split("\\")[-1].split("_")[1] == "session6right":
+                pers_control_points = np.array([200, 760, 1140, 115, 1765, 115, 1660, 760]).astype(np.float32).reshape(-1, 2)
+            elif line[1].split("\\")[-1].split("_")[0] == "0cam":
+                pers_control_points = np.array([227, 663, 670, 197, 920, 197, 915, 667]).astype(np.float32).reshape(-1, 2)
+            elif line[1].split("\\")[-1].split("_")[0] == "1cam":
+                pers_control_points = np.array([45, 684, 323, 206, 550, 206, 716, 684]).astype(np.float32).reshape(-1, 2)
+        else:
+            raise ValueError("unsupported system!")
+
         # from box_info
         # left,top,width,height,cls_id,cx1,cy1,u0,v0,...,u7,v7,v_l,v_w,v_h,pers,bpx1,bpx2  (29 items)
         box2d_len = 4
@@ -88,46 +114,127 @@ class Bbox3dDatasets(Dataset):
         # resize image (without deform)
         image = self.letterbox_image(image, image_h, image_w, input_shape)  # RGB, HWC
 
+        if len(box_info) > 0:
+            box2d[:, 0] = box2d[:, 0] * new_image_w / image_w + dx
+            box2d[:, 1] = box2d[:, 1] * new_image_h / image_h + dy
+            box2d[:, 2] = box2d[:, 2] * featmap_w / max(image_w, image_h)
+            box2d[:, 3] = box2d[:, 3] * featmap_h / max(image_w, image_h)
+            correct_box2d[:len(box_info)] = box2d
+
+            box_center[:, 0] = box_center[:, 0] * new_image_w / image_w + dx
+            box_center[:, 1] = box_center[:, 1] * new_image_h / image_h + dy
+            correct_box_center[:len(box_info)] = box_center
+
+            box_vertex[:, 0:16:2] = box_vertex[:, 0:16:2] * new_image_w / image_w + dx  # x
+            box_vertex[:, 1:16:2] = box_vertex[:, 1:16:2] * new_image_h / image_h + dy  # y
+            correct_box_vertex[:len(box_info)] = box_vertex
+
+            pers_control_points[:, 0] = pers_control_points[:, 0] * new_image_w / image_w + dx  # x
+            pers_control_points[:, 1] = pers_control_points[:, 1] * new_image_h / image_h + dy  # y
+
         if augment:  # data augmentation
             # random flip
-            # flip = rand()<.5
             flip = False
+            # random rotation
+            rotation = False
+            # random color jitter
+            color_change = self.rand() < .5
+            # random transformation
+            persp_transform = False
+
+            if persp_transform:
+                cv_img = np.array(image, dtype=np.float32)[:, :, ::-1]  # RGB -> BGR, HWC
+                shift = np.random.randint(-5, 5, [4, 2])
+                pers_boxes, pers_center_points, pers_vertex = [], [], []
+                if len(box_info) > 0:
+                    pers_control_points_aft = pers_control_points + np.array(shift).astype(np.float32)
+
+                    pers_trans_m = cv.getPerspectiveTransform(pers_control_points, pers_control_points_aft)
+                    pers_trans_cv_img = cv.warpPerspective(cv_img, pers_trans_m, (cv_img.shape[1], cv_img.shape[0]))
+                    image = Image.fromarray(np.uint8(pers_trans_cv_img[:, :, ::-1]))  # BGR -> RGB
+
+                    for i in range(box_info.shape[0]):
+                        # 1、2d box
+                        box2d_four_points = np.array([box2d[i, 0], box2d[i, 1], box2d[i, 0] + box2d[i, 2], box2d[i, 1], box2d[i, 0], box2d[i, 1] + box2d[i, 3], box2d[i, 0] + box2d[i, 2], box2d[i, 1] + box2d[i, 3]])
+                        raw_box2d_four_points = box2d_four_points.reshape(4, 2)
+                        homo_box2d_four_points = coord_to_homog(raw_box2d_four_points)
+                        pers_res_box = np.matmul(pers_trans_m, homo_box2d_four_points.T)
+                        pers_res_box = pers_res_box.T
+                        pers_res_box = coord_to_normal(pers_res_box)
+                        pers_res_box = pers_res_box.reshape(1, -1)
+                        box_xs = pers_res_box[:, 0:8:2]
+                        box_ys = pers_res_box[:, 1:8:2]
+                        rot_new_box_xmin, rot_new_box_xmax = np.min(box_xs), np.max(box_xs)
+                        rot_new_box_ymin, rot_new_box_ymax = np.min(box_ys), np.max(box_ys)
+                        pers_boxes.append([rot_new_box_xmin, rot_new_box_ymin, abs(rot_new_box_xmax-rot_new_box_xmin), abs(rot_new_box_ymax-rot_new_box_ymin)])
+                        # 2、center
+                        raw_ct_points = box_center[i].reshape(1, 2)
+                        homo_ct_points = coord_to_homog(raw_ct_points)
+                        pers_res_ct = np.matmul(pers_trans_m, homo_ct_points.T)
+                        pers_res_ct = pers_res_ct.T
+                        pers_res_ct = coord_to_normal(pers_res_ct)
+                        pers_res_ct = pers_res_ct.reshape(1, -1)
+                        pers_center_points.append(pers_res_ct)
+                        # 3、vertex
+                        raw_vertex = box_vertex[i].reshape(8, 2)
+                        homo_raw_vertex = coord_to_homog(raw_vertex)
+                        pers_res_vertex = np.matmul(pers_trans_m, homo_raw_vertex.T)
+                        pers_res_vertex = pers_res_vertex.T
+                        pers_res_vertex = coord_to_normal(pers_res_vertex)
+                        pers_res_vertex = pers_res_vertex.reshape(1, -1)
+                        pers_vertex.append(pers_res_vertex)
+
+                    box2d = np.array(pers_boxes).astype(np.float32)
+                    box_center = np.array(pers_center_points).astype(np.float32).squeeze(axis=1)
+                    box_vertex = np.array(pers_vertex).astype(np.float32).squeeze(axis=1)
+                    correct_box2d[:len(box_info)] = box2d
+                    correct_box_center[:len(box_info)] = box_center
+                    correct_box_vertex[:len(box_info)] = box_vertex
+            if rotation:
+                rot_boxes, rot_center_points, rot_vertex = [], [], []
+                if len(box_info) > 0:
+                    rot_angle = np.random.uniform(-5, 5)
+                    rot_theta = np.deg2rad(rot_angle)
+                    rot_center = np.array([featmap_h/2, featmap_w/2]).reshape(2, 1)
+                    rot_matrix = np.array([np.cos(rot_theta), np.sin(rot_theta), -np.sin(rot_theta), np.cos(rot_theta)]).reshape(2,2)
+                    for i in range(box_info.shape[0]):
+                        # 1、2d box
+                        box2d_four_points = np.array([box2d[i, 0], box2d[i, 1], box2d[i, 0] + box2d[i, 2], box2d[i, 1], box2d[i, 0], box2d[i, 1] + box2d[i, 3], box2d[i, 0] + box2d[i, 2], box2d[i, 1] + box2d[i, 3]])
+                        rot_res_box = np.matmul(rot_matrix, box2d_four_points.reshape(4, 2).T - rot_center) + rot_center
+                        rot_res_box = rot_res_box.T.reshape(1, -1)
+                        box_xs = rot_res_box[:, 0:8:2]
+                        box_ys = rot_res_box[:, 1:8:2]
+                        rot_new_box_xmin, rot_new_box_xmax = np.min(box_xs), np.max(box_xs)
+                        rot_new_box_ymin, rot_new_box_ymax = np.min(box_ys), np.max(box_ys)
+                        rot_boxes.append([rot_new_box_xmin, rot_new_box_ymin, abs(rot_new_box_xmax-rot_new_box_xmin), abs(rot_new_box_ymax-rot_new_box_ymin)])
+                        # 2、center
+                        rot_res_ct = np.matmul(rot_matrix, box_center[i].reshape(1, 2).T - rot_center) + rot_center
+                        rot_res_ct = rot_res_ct.T.reshape(1, -1)
+                        rot_center_points.append(rot_res_ct)
+                        # 3、vertex
+                        rot_res_vertex = np.matmul(rot_matrix, box_vertex[i].reshape(8, 2).T - rot_center) + rot_center
+                        rot_res_vertex = rot_res_vertex.T.reshape(1, -1)
+                        rot_vertex.append(rot_res_vertex)
+
+                    box2d = np.array(rot_boxes).astype(np.float32)
+                    box_center = np.array(rot_center_points).astype(np.float32).squeeze(axis=1)
+                    box_vertex = np.array(rot_vertex).astype(np.float32).squeeze(axis=1)
+                    correct_box2d[:len(box_info)] = box2d
+                    correct_box_center[:len(box_info)] = box_center
+                    correct_box_vertex[:len(box_info)] = box_vertex
+
+                    image = image.rotate(rot_angle)
             if flip:
                 image = image.transpose(Image.FLIP_LEFT_RIGHT)
-
                 if len(box_info) > 0:
-                    box2d[:, 0] = featmap_w - ((box2d[:, 0] + box2d[:, 2]) * new_image_w/image_w + dx)
-                    box2d[:, 1] = box2d[:, 1] * new_image_h/image_h + dy
-                    box2d[:, 2] = box2d[:, 2] * featmap_w/max(image_w, image_h)
-                    box2d[:, 3] = box2d[:, 3] * featmap_h/max(image_w, image_h)
+                    box2d[:, 0] = featmap_w - (box2d[:, 0] + box2d[:, 2])
                     correct_box2d[:len(box_info)] = box2d
 
-                    box_center[:, 0] = featmap_w - (box_center[:, 0] * new_image_w/image_w + dx)
-                    box_center[:, 1] = box_center[:, 1] * new_image_h/image_h + dy
+                    box_center[:, 0] = featmap_w - box_center[:, 0]
                     correct_box_center[:len(box_info)] = box_center
 
-                    box_vertex[:, 0:16:2] = featmap_w - (box_vertex[:, 0:16:2] * new_image_w/image_w + dx)  # x
-                    box_vertex[:, 1:16:2] = box_vertex[:, 1:16:2] * new_image_h/image_h + dy  # y
+                    box_vertex[:, 0:18:2] = featmap_w - box_vertex[:, 0:16:2]
                     correct_box_vertex[:len(box_info)] = box_vertex
-
-            else:
-                if len(box_info) > 0:
-                    box2d[:, 0] = box2d[:, 0] * new_image_w/image_w + dx
-                    box2d[:, 1] = box2d[:, 1] * new_image_h/image_h + dy
-                    box2d[:, 2] = box2d[:, 2] * featmap_w/max(image_w, image_h)
-                    box2d[:, 3] = box2d[:, 3] * featmap_h/max(image_w, image_h)
-                    correct_box2d[:len(box_info)] = box2d
-
-                    box_center[:, 0] = box_center[:, 0] * new_image_w/image_w + dx
-                    box_center[:, 1] = box_center[:, 1] * new_image_h/image_h + dy
-                    correct_box_center[:len(box_info)] = box_center
-
-                    box_vertex[:, 0:16:2] = box_vertex[:, 0:16:2] * new_image_w/image_w + dx  # x
-                    box_vertex[:, 1:16:2] = box_vertex[:, 1:16:2] * new_image_h/image_h + dy  # y
-                    correct_box_vertex[:len(box_info)] = box_vertex
-
-            # random color jittor
-            color_change = self.rand() < .5
             if color_change:
                 hue = self.rand(-hue, hue)
                 sat = self.rand(1, sat) if self.rand()<.5 else 1/self.rand(1, sat)
@@ -144,21 +251,6 @@ class Bbox3dDatasets(Dataset):
                 image = cv.cvtColor(x, cv.COLOR_HSV2RGB)*255
             return image, calib_matrix, correct_box2d, box_cls, correct_box_center, correct_box_vertex, box_size, box_perspective, box_base_point, image_w, image_h
         else:
-            if len(box_info) > 0:
-                box2d[:, 0] = box2d[:, 0] * new_image_w/image_w + dx
-                box2d[:, 1] = box2d[:, 1] * new_image_h/image_h + dy
-                box2d[:, 2] = box2d[:, 2] * featmap_w/max(image_w, image_h)
-                box2d[:, 3] = box2d[:, 3] * featmap_h/max(image_w, image_h)
-                correct_box2d[:len(box_info)] = box2d
-
-                box_center[:, 0] = box_center[:, 0] * new_image_w/image_w + dx
-                box_center[:, 1] = box_center[:, 1] * new_image_h/image_h + dy
-                correct_box_center[:len(box_info)] = box_center
-
-                box_vertex[:, 0:16:2] = box_vertex[:, 0:16:2] * new_image_w/image_w + dx  # x
-                box_vertex[:, 1:16:2] = box_vertex[:, 1:16:2] * new_image_h/image_h + dy  # y
-                correct_box_vertex[:len(box_info)] = box_vertex
-            
             return image, calib_matrix, correct_box2d, box_cls, correct_box_center, correct_box_vertex, box_size, box_perspective, box_base_point, image_w, image_h
 
     def __getitem__(self, index):
