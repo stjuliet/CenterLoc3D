@@ -25,7 +25,7 @@ def preprocess_image(image):
 # model_path、classes_path和backbone
 class Bbox3dPred(object):
     _defaults = {
-        "model_path"        : '../0all-module-logs/resnet50-Epoch99-ciou-Total_train_Loss1.5854-Val_Loss2.2824.pth',
+        "model_path"        : '../logs/resnet50-Epoch100-ciou-Total_train_Loss1.3876-Val_Loss2.1325.pth',
         "classes_path"      : '../model_data/classes.txt',
         "backbone"          : "resnet50",
         "image_size"        : [512, 512, 3],
@@ -225,39 +225,39 @@ class Bbox3dPred(object):
             process_time = t2 - t1
 
             # ----------------------------------save specific class heatmap-----------------------------------#
-            # # save heatmap
-            # # heatmap of cls-0
-            # hotmaps = output_hm[0].cpu().numpy().transpose(1, 2, 0)[..., 0]
-            # # print(hotmaps.shape)
-            #
-            # import matplotlib.pyplot as plt
-            #
-            # heatmap = np.maximum(hotmaps, 0)
-            # heatmap /= np.max(heatmap)
-            # # plt.matshow(heatmap)
-            # # plt.show()
-            #
-            # heatmap = cv.resize(heatmap, (self.image_size[0], self.image_size[1]))
-            # heatmap = np.uint8(255 * heatmap)
-            # heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
+            # save heatmap
+            # heatmap of cls-0
+            hotmaps = output_hm[0].cpu().numpy().transpose(1, 2, 0)[..., 0]
+            # print(hotmaps.shape)
+
+            import matplotlib.pyplot as plt
+
+            heatmap = np.maximum(hotmaps, 0)
+            heatmap /= np.max(heatmap)
+            # plt.matshow(heatmap)
+            # plt.show()
+
+            heatmap = cv.resize(heatmap, (self.image_size[0], self.image_size[1]))
+            heatmap = np.uint8(255 * heatmap)
+            heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
 
             # -----------------------------------save all class heatmap (fusion)------------------------------#
-            final_heatmap = np.zeros((self.image_size[0], self.image_size[1], 3), dtype=np.uint8)
-            for i in range(self.num_classes):
-                hotmap = output_hm[0].cpu().numpy().transpose(1, 2, 0)[..., i]  # each class
-
-                heatmap = np.maximum(hotmap, 0)
-                heatmap /= np.max(heatmap)
-
-                heatmap = cv.resize(heatmap, (self.image_size[0], self.image_size[1]))
-                heatmap = np.uint8(255 * heatmap)
-                heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
-
-                heatmap = heatmap / self.num_classes
-                heatmap = heatmap.astype(np.uint8)
-
-                final_heatmap += heatmap
-            heatmap = final_heatmap
+            # final_heatmap = np.zeros((self.image_size[0], self.image_size[1], 3), dtype=np.uint8)
+            # for i in range(self.num_classes):
+            #     hotmap = output_hm[0].cpu().numpy().transpose(1, 2, 0)[..., i]  # each class
+            #
+            #     heatmap = np.maximum(hotmap, 0)
+            #     heatmap /= np.max(heatmap)
+            #
+            #     heatmap = cv.resize(heatmap, (self.image_size[0], self.image_size[1]))
+            #     heatmap = np.uint8(255 * heatmap)
+            #     heatmap = cv.applyColorMap(heatmap, cv.COLORMAP_JET)
+            #
+            #     heatmap = heatmap / self.num_classes
+            #     heatmap = heatmap.astype(np.uint8)
+            #
+            #     final_heatmap += heatmap
+            # heatmap = final_heatmap
 
         # font = ImageFont.truetype(font='model_data/simhei.ttf',size=np.floor(3e-2 * np.shape(image)[1] + 0.5).astype('int32')//2)
         font = ImageFont.truetype(font="../model_data/Times New Roman.ttf", size=28)

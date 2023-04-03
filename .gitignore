@@ -24,3 +24,8 @@
 /0all-module-logs/
 /1without-iou-logs/
 /2without-iou-proj-module/
+/without-iou-module/
+/without-iou-reproj-module/
+
+/4-noaug/
+/baseline/

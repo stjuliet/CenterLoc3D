@@ -5,7 +5,14 @@ from tqdm import tqdm
 import math
 import matplotlib.pyplot as plt
 
-mode = "test"
+plt.rcParams['font.sans-serif'] = ['SimHei']
+plt.rcParams['axes.unicode_minus'] = False  # 坐标轴上可以显示负数
+# config = {
+#     'font.family':'HGSS_CNKI',
+# }
+# plt.rcParams.update(config)
+
+mode = "baseline/test"
 
 record_txt = False  # do not change
 
@@ -54,12 +61,12 @@ all_s_xc_error, all_s_yc_error, all_s_zc_error, all_s_loc_error = [], [], [], []
 all_s_l_error, all_s_w_error, all_s_h_error, all_s_size_error = [], [], [], []
 
 
-font_legend = {'family': 'Times New Roman',
+font_legend = {'family': 'SimHei',
         'weight': 'normal',
         'size': 40,
         }
 
-font_label = {'family': 'Times New Roman',
+font_label = {'family': 'SimHei',
         'weight': 'normal',
         'size': 40,
         }
@@ -74,10 +81,10 @@ for i in tqdm(range(len(list_det_txt))):  # img files
         plt.tick_params(labelsize=40)
         labels = ax.get_xticklabels() + ax.get_yticklabels()
 
-        [label.set_fontname('Times New Roman') for label in labels]
+        [label.set_fontname('SimHei') for label in labels]
 
-        plt.xlabel("ground truth distance/m", font_label)
-        plt.ylabel("error/m", font_label)
+        plt.xlabel("真实距离/m", font_label)
+        plt.ylabel("误差/m", font_label)
 
         # tick direction
         plt.rcParams['xtick.direction'] = 'in'
@@ -89,10 +96,10 @@ for i in tqdm(range(len(list_det_txt))):  # img files
         plt.tick_params(labelsize=40)
         labels = ax.get_xticklabels() + ax.get_yticklabels()
 
-        [label.set_fontname('Times New Roman') for label in labels]
+        [label.set_fontname('SimHei') for label in labels]
 
-        plt.xlabel("x/m", font_label)
-        plt.ylabel("y/m", font_label)
+        plt.xlabel("X/m", font_label)
+        plt.ylabel("Y/m", font_label)
 
         # tick direction
         plt.rcParams['xtick.direction'] = 'in'
@@ -130,8 +137,8 @@ for i in tqdm(range(len(list_det_txt))):  # img files
                 # draw whenever matched
                 cx_gt_unmatched, cy_gt_unmatched, cz_gt_unmatched = np.array(gt[28:31]).astype(np.float)
                 cx_det_unmatched, cy_det_unmatched, cz_det_unmatched = np.array(det[29:32]).astype(np.float)
-                det_plot = plt.scatter(cx_det_unmatched/1000, cy_det_unmatched/1000, s=800, c="b", marker="s", label="detection")   # det
-                gt_plot = plt.scatter(cx_gt_unmatched/1000, cy_gt_unmatched/1000, s=1000, c="r", marker="*", label="ground truth")   # gt
+                det_plot = plt.scatter(cx_det_unmatched/1000, cy_det_unmatched/1000, s=800, c="b", marker="s", label="检测值")   # det
+                gt_plot = plt.scatter(cx_gt_unmatched/1000, cy_gt_unmatched/1000, s=1000, c="r", marker="*", label="真实值")   # gt
 
                 plt.legend(handles=[gt_plot, det_plot], prop=font_legend)
             
@@ -193,20 +200,20 @@ for i in tqdm(range(len(list_det_txt))):  # img files
             #     plt.yticks(np.arange(-0.5,3.5,0.5))
             #     plt.ylim(-0.5,3.5)
 
-            # xc_plot = plt.plot(sorted(s_gt_yc), sorted(s_xc_error), color="green", linewidth=2, label="X error")
-            # yc_plot = plt.plot(sorted(s_gt_yc), sorted(s_yc_error), color="red", linewidth=2, label="Y error")
-            # zc_plot = plt.plot(sorted(s_gt_yc), sorted(s_zc_error), color="blue", linewidth=2, label="Z error")
-            # loc_plot = plt.plot(sorted(s_gt_yc), sorted(s_loc_error), color="orange", linewidth=2, label="total error")
+            xc_plot = plt.plot(sorted(s_gt_yc), sorted(s_xc_error), color="green", linewidth=2, label="X方向误差")
+            yc_plot = plt.plot(sorted(s_gt_yc), sorted(s_yc_error), color="red", linewidth=2, label="Y方向误差")
+            zc_plot = plt.plot(sorted(s_gt_yc), sorted(s_zc_error), color="blue", linewidth=2, label="Z方向误差")
+            loc_plot = plt.plot(sorted(s_gt_yc), sorted(s_loc_error), color="orange", linewidth=2, label="总误差")
 
             # # 尺寸刻度
             # if SCENE_NUM == 1:
             #     plt.yticks(np.arange(-0.2,1.2,0.2))
             # if SCENE_NUM == 2:
             #     plt.yticks(np.arange(-0.2,1.2,0.2))
-            l_plot = plt.plot(sorted(s_gt_yc), sorted(s_l_error), color="green", linewidth=2, label="l error")
-            w_plot = plt.plot(sorted(s_gt_yc), sorted(s_w_error), color="red", linewidth=2, label="w error")
-            h_plot = plt.plot(sorted(s_gt_yc), sorted(s_h_error), color="blue", linewidth=2, label="h error")
-            size_plot = plt.plot(sorted(s_gt_yc), sorted(s_size_error), color="orange", linewidth=2, label="total error")
+            # l_plot = plt.plot(sorted(s_gt_yc), sorted(s_l_error), color="green", linewidth=2, label="车辆长度误差")
+            # w_plot = plt.plot(sorted(s_gt_yc), sorted(s_w_error), color="red", linewidth=2, label="车辆宽度误差")
+            # h_plot = plt.plot(sorted(s_gt_yc), sorted(s_h_error), color="blue", linewidth=2, label="车辆高度误差")
+            # size_plot = plt.plot(sorted(s_gt_yc), sorted(s_size_error), color="orange", linewidth=2, label="总误差")
 
             if record_txt:
                 f.write("Scene: " + str(i) + "\n")
@@ -221,8 +228,8 @@ for i in tqdm(range(len(list_det_txt))):  # img files
 
             plt.legend(loc="best", prop=font_legend)
 
-            # plt.savefig(os.path.join("../%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_loc_curve-%s.eps"%str(MINOVERLAP)), format="eps")
-            plt.savefig(os.path.join("../%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_size_curve-%s.eps"%str(MINOVERLAP)), format="eps")
+            plt.savefig(os.path.join("../%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_loc_curve-%s.svg"%str(MINOVERLAP)), format="svg")
+            # plt.savefig(os.path.join("../%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_size_curve-%s.svg"%str(MINOVERLAP)), format="svg")
             plt.close()
 
             # clear all variables after figure saved
@@ -240,16 +247,16 @@ for i in tqdm(range(len(list_det_txt))):  # img files
 
         # plt.yticks(np.arange(-0.2,1,0.2))
         # plt.ylim(-0.2, 1.0)
-        # xc_plot = plt.plot(sorted(s_gt_yc), sorted(s_xc_error), color="green", linewidth=2, label="X error")
-        # yc_plot = plt.plot(sorted(s_gt_yc), sorted(s_yc_error), color="red", linewidth=2, label="Y error")
-        # zc_plot = plt.plot(sorted(s_gt_yc), sorted(s_zc_error), color="blue", linewidth=2, label="Z error")
-        # loc_plot = plt.plot(sorted(s_gt_yc), sorted(s_loc_error), color="orange", linewidth=2, label="total error")
+        xc_plot = plt.plot(sorted(s_gt_yc), sorted(s_xc_error), color="green", linewidth=2, label="X方向误差")
+        yc_plot = plt.plot(sorted(s_gt_yc), sorted(s_yc_error), color="red", linewidth=2, label="Y方向误差")
+        zc_plot = plt.plot(sorted(s_gt_yc), sorted(s_zc_error), color="blue", linewidth=2, label="Z方向误差")
+        loc_plot = plt.plot(sorted(s_gt_yc), sorted(s_loc_error), color="orange", linewidth=2, label="总误差")
 
         # plt.yticks(np.arange(-0.2,1.2,0.2))
-        l_plot = plt.plot(sorted(s_gt_yc), sorted(s_l_error), color="green", linewidth=2, label="l error")
-        w_plot = plt.plot(sorted(s_gt_yc), sorted(s_w_error), color="red", linewidth=2, label="w error")
-        h_plot = plt.plot(sorted(s_gt_yc), sorted(s_h_error), color="blue", linewidth=2, label="h error")
-        size_plot = plt.plot(sorted(s_gt_yc), sorted(s_size_error), color="orange", linewidth=2, label="total error")
+        # l_plot = plt.plot(sorted(s_gt_yc), sorted(s_l_error), color="green", linewidth=2, label="车辆长度误差")
+        # w_plot = plt.plot(sorted(s_gt_yc), sorted(s_w_error), color="red", linewidth=2, label="车辆宽度误差")
+        # h_plot = plt.plot(sorted(s_gt_yc), sorted(s_h_error), color="blue", linewidth=2, label="车辆高度误差")
+        # size_plot = plt.plot(sorted(s_gt_yc), sorted(s_size_error), color="orange", linewidth=2, label="总误差")
         if record_txt:
             f.write("Scene: " + str(i) + "\n")
             f.write("Avg_l_error_single_scene/m: " + str(np.mean(s_l_error)) + "\n")
@@ -263,15 +270,15 @@ for i in tqdm(range(len(list_det_txt))):  # img files
 
         plt.legend(loc="best", prop=font_legend)
 
-        # plt.savefig(os.path.join("../%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_loc_curve-%s.eps"%str(MINOVERLAP)), format="eps")
-        plt.savefig(os.path.join("../%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_size_curve-%s.eps"%str(MINOVERLAP)), format="eps")
+        plt.savefig(os.path.join("../%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_loc_curve-%s.svg"%str(MINOVERLAP)), format="svg")
+        # plt.savefig(os.path.join("../%s/input-3D/visualize-loc-curve" % mode, list_det_txt[i].split(".")[0] + "_vis_size_curve-%s.svg"%str(MINOVERLAP)), format="svg")
         plt.close()
     
     if vis_curve:
         plt.close()
 
     if vis_pos:
-        plt.savefig(os.path.join("../%s/input-3D/visualize-pos-%s" % (mode, str(MINOVERLAP)), list_det_txt[i].split(".")[0] + "_vispos-%s.eps"%str(MINOVERLAP)), format="eps")
+        plt.savefig(os.path.join("../%s/input-3D/visualize-pos-%s" % (mode, str(MINOVERLAP)), list_det_txt[i].split(".")[0] + "_vispos-%s.svg"%str(MINOVERLAP)), format="svg")
         plt.close()
 
 # save final error and precision of 3d size and centroid

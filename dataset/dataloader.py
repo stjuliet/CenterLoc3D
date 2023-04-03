@@ -138,7 +138,7 @@ class Bbox3dDatasets(Dataset):
             # random rotation
             rotation = False
             # random color jitter
-            color_change = self.rand() < .5
+            color_change = False
             # random transformation
             persp_transform = False
 

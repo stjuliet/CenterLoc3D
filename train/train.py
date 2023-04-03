@@ -237,7 +237,7 @@ def get_arguments_for_train(list_backbones):
     parser = argparse.ArgumentParser("CenterLoc3D")
     # dataset
     parser.add_argument("-classes_path", type=str, default="../model_data/classes.txt", help="classes file path")
-    parser.add_argument("-num_workers", type=int, default=8, help="dataloader num workers")
+    parser.add_argument("-num_workers", type=int, default=4, help="dataloader num workers")
     # model
     parser.add_argument("-input_size", type=str, default="512, 512, 3", help="network input img size")
     parser.add_argument("-backbone", type=str, default="resnet50", choices=list_backbones, help="network backbone")
@@ -362,7 +362,7 @@ if __name__ == "__main__":
 
     # ------------------------hyper parameters-----------------------------------------------------
     # iou loss type
-    args.iou_loss_type = None
+    # args.iou_loss_type = None
 
     # batch_size
     if batch_size_list:
